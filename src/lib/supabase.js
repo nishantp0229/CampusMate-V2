@@ -23,7 +23,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-// createClient sets up the connection. We export one shared instance
-// so the whole app reuses the same connection.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// createClient sets up the connection. If environment variables are missing during early frontend development,
+// we export null safely with a warning rather than crashing the application.
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null
 
