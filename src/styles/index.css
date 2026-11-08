@@ -4,6 +4,10 @@
 /* Tailwind CSS v4 — single import directive */
 @import "tailwindcss";
 
+/* Class-based dark mode: dark: variants activate when any ancestor has .dark class.
+   We add/remove .dark on <html> in App.jsx via the theme toggle. */
+@custom-variant dark (&:is(.dark *));
+
 /* ─── Design Tokens (CSS Custom Properties) ──────────── */
 /*
   These variables define the entire CampusMate colour palette.
@@ -13,30 +17,36 @@
 @theme {
   /* Fonts */
   --font-heading: 'Poppins', sans-serif;
-  --font-body:    'Inter',   sans-serif;
+  --font-body: 'Inter', sans-serif;
 
   /* Brand colours */
-  --color-primary:   #A9C9FF; /* pastel blue   */
-  --color-secondary: #C8B6FF; /* lavender       */
-  --color-ice:       #EAF2FF; /* ice blue       */
-  --color-soft-lav:  #F0EBFF; /* soft lavender  */
+  --color-primary: #A9C9FF;
+  /* pastel blue   */
+  --color-secondary: #C8B6FF;
+  /* lavender       */
+  --color-ice: #EAF2FF;
+  /* ice blue       */
+  --color-soft-lav: #F0EBFF;
+  /* soft lavender  */
 
   /* Light theme */
-  --color-bg:         #F7F8FC;
-  --color-surface:    #FFFFFF;
-  --color-text:       #242B3A;
-  --color-muted:      #737B8C;
-  --color-border:     #E2E8F0;
+  --color-bg: #F7F8FC;
+  --color-surface: #FFFFFF;
+  --color-text: #242B3A;
+  --color-muted: #737B8C;
+  --color-border: #E2E8F0;
 
   /* Dark theme */
-  --color-dark-bg:      #171A29;
+  --color-dark-bg: #171A29;
   --color-dark-surface: #252A3C;
   --color-dark-sidebar: #202438;
-  --color-dark-text:    #F1F1FC;
+  --color-dark-text: #F1F1FC;
 }
 
 /* ─── Base Styles ────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -62,7 +72,12 @@ body.dark {
 }
 
 /* ─── Typography Helpers ─────────────────────────────── */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
   line-height: 1.3;

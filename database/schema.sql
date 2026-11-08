@@ -263,3 +263,4 @@ CREATE POLICY "resources: users can delete own resources"
 -- =============================================================
 -- Done! All tables, indexes and security policies are created.
 -- =============================================================
+

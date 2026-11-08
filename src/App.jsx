@@ -1,63 +1,70 @@
-// src/App.jsx
-//
-// This is the ROOT component of CampusMate.
-// It does two things:
-//   1. Wraps the whole app in BrowserRouter so React Router can manage pages.
-//   2. Provides a ThemeContext so any component can read/toggle dark mode.
-//
-// As we add more pages, we register their routes here inside <Routes>.
+// src/App.jsx — Root component: routing + dark-mode context provider
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { createContext, useContext, useState, useEffect } from 'react'
 
-// ─── Pages (we will create these one by one) ─────────────────────────────────
-import Dashboard from './pages/Dashboard.jsx'
-import NotFound  from './pages/NotFound.jsx'
+// Layout (shared shell for authenticated pages)
+import AppLayout from './components/layout/AppLayout'
+
+// Public pages
+import Landing  from './pages/Landing'
+import Login    from './pages/Login'
+import Signup   from './pages/Signup'
+
+// Authenticated pages
+import Dashboard from './pages/Dashboard'
+import Planner   from './pages/Planner'
+import Events    from './pages/Events'
+import LostFound from './pages/LostFound'
+import Resources from './pages/Resources'
+import Profile   from './pages/Profile'
+
+// 404
+import NotFound from './pages/NotFound'
 
 // ─── Theme Context ────────────────────────────────────────────────────────────
-// ThemeContext lets any component anywhere in the app know whether dark mode
-// is active, and lets them call toggleTheme() to switch it.
+// Any component can call useTheme() to read theme ('light'|'dark')
+// or call toggleTheme() to switch it.
 export const ThemeContext = createContext(null)
 
 export function useTheme() {
   return useContext(ThemeContext)
 }
 
-// ─── App Component ────────────────────────────────────────────────────────────
+// ─── App ─────────────────────────────────────────────────────────────────────
 function App() {
-  // Load the user's saved theme from localStorage (default: 'light')
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('campusmate-theme') || 'light'
-  })
+  const [theme, setTheme] = useState(() =>
+    localStorage.getItem('campusmate-theme') || 'light'
+  )
 
-  // Whenever theme changes, apply/remove the 'dark' class on <html>
-  // and save the preference so it persists on refresh.
+  // Apply/remove .dark class on <html> and persist to localStorage
   useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
+    document.documentElement.classList.toggle('dark', theme === 'dark')
     localStorage.setItem('campusmate-theme', theme)
   }, [theme])
 
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'))
-  }
+  const toggleTheme = () => setTheme(t => (t === 'light' ? 'dark' : 'light'))
 
   return (
-    // Provide theme + toggle to every child component
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <BrowserRouter>
         <Routes>
-          {/* Default route: redirect / to /dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* ── Public ─────────────────────────── */}
+          <Route path="/"       element={<Landing />} />
+          <Route path="/login"  element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-          {/* Main pages — more will be added here in later stages */}
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* ── Authenticated (share sidebar + topbar via AppLayout) ── */}
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard"  element={<Dashboard />} />
+            <Route path="/planner"    element={<Planner />} />
+            <Route path="/events"     element={<Events />} />
+            <Route path="/lost-found" element={<LostFound />} />
+            <Route path="/resources"  element={<Resources />} />
+            <Route path="/profile"    element={<Profile />} />
+          </Route>
 
-          {/* Catch-all: show a friendly 404 page */}
+          {/* ── Fallback ───────────────────────── */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

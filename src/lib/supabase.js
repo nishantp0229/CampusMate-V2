@@ -26,3 +26,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // createClient sets up the connection. We export one shared instance
 // so the whole app reuses the same connection.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
