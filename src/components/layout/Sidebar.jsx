@@ -1,134 +1,199 @@
-// Sidebar.jsx — Fixed left navigation drawer for CampusMate
-// Desktop: always visible static sidebar (240px wide)
-// Mobile: sliding drawer overlay, controlled by isOpen/onClose props
+// src/components/layout/Sidebar.jsx — Purpose-built collegiate sidebar navigation
 
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
   CheckSquare,
   CalendarDays,
-  MapPin,
   BookOpen,
   UserCircle,
-  GraduationCap,
   X,
+  Compass,
 } from 'lucide-react'
+import { MOCK_TASKS, MOCK_USER } from '../../utils/mockData'
 
-// Navigation items — each has a label, icon component, route path, and accent color
-const navItems = [
-  { label: 'Dashboard',        icon: LayoutDashboard, path: '/dashboard',  accentColor: '#A9C9FF' },
-  { label: 'Academic Planner', icon: CheckSquare,     path: '/planner',    accentColor: '#6BCB9A' },
-  { label: 'CampusConnect',    icon: CalendarDays,    path: '/events',     accentColor: '#C8B6FF' },
-  { label: 'CampusFind',       icon: MapPin,          path: '/lost-found', accentColor: '#FF9BAA' },
-  { label: 'NoteNest',         icon: BookOpen,        path: '/resources',  accentColor: '#FFB347' },
-  { label: 'Profile',          icon: UserCircle,      path: '/profile',    accentColor: '#94B4FF' },
+// Navigation sections grouped with intentional academic hierarchy
+const navSections = [
+  {
+    title: 'Academics',
+    items: [
+      {
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        path: '/dashboard',
+        badge: null,
+      },
+      {
+        label: 'Academic Planner',
+        icon: CheckSquare,
+        path: '/planner',
+        badge: `${MOCK_TASKS.filter(t => t.status === 'pending').length} due`,
+        badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+      },
+      {
+        label: 'NoteNest Library',
+        icon: BookOpen,
+        path: '/resources',
+        badge: null,
+      },
+    ],
+  },
+  {
+    title: 'Campus Life',
+    items: [
+      {
+        label: 'CampusConnect',
+        icon: CalendarDays,
+        path: '/events',
+        badge: '7 live',
+        badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300',
+      },
+      {
+        label: 'CampusFind',
+        icon: Compass,
+        path: '/lost-found',
+        badge: null,
+      },
+    ],
+  },
+  {
+    title: 'Personal',
+    items: [
+      {
+        label: 'Profile & Settings',
+        icon: UserCircle,
+        path: '/profile',
+        badge: null,
+      },
+    ],
+  },
 ]
 
 function Sidebar({ isOpen, onClose }) {
   return (
-    <>
-      {/* Sidebar panel
-          - Mobile: fixed overlay, slides in/out via translate-x
-          - Desktop (md+): static, always visible */}
-      <aside
-        className={[
-          // Base layout
-          'fixed top-0 left-0 h-full w-[240px] flex flex-col z-30',
-          // Colors & border
-          'bg-white dark:bg-[#202438]',
-          'border-r border-[#E2E8F0] dark:border-white/[0.07]',
-          // Mobile slide animation
-          'transition-transform duration-300',
-          isOpen ? 'translate-x-0' : '-translate-x-full',
-          // Desktop: always shown, static positioning handled by parent flex
-          'md:translate-x-0 md:static md:z-auto',
-        ].join(' ')}
-      >
-        {/* ── Logo / Brand area (height matches topbar: 56px) ── */}
-        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            {/* Accent circle with graduation cap icon */}
-            <div className="w-8 h-8 rounded-full bg-[#A9C9FF] flex items-center justify-center flex-shrink-0">
-              <GraduationCap size={16} color="#ffffff" />
-            </div>
-            {/* App name in Poppins bold */}
-            <span
-              className="text-[#242B3A] dark:text-[#F1F1FC] font-bold text-base tracking-tight"
-              style={{ fontFamily: 'Poppins, sans-serif' }}
-            >
-              CampusMate
-            </span>
+    <aside
+      className={[
+        'fixed top-0 left-0 h-full w-[250px] flex flex-col z-30',
+        'bg-[#FAFBFD] dark:bg-[#121622]',
+        'border-r border-slate-200/80 dark:border-white/[0.08]',
+        'transition-transform duration-200 ease-out',
+        isOpen ? 'translate-x-0' : '-translate-x-full',
+        'md:translate-x-0 md:static md:z-auto',
+      ].join(' ')}
+    >
+      {/* ── College Workspace Identity Header ── */}
+      <div className="h-16 px-4 flex items-center justify-between border-b border-slate-200/70 dark:border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#94B8FF] to-[#C2B0FF] flex items-center justify-center flex-shrink-0 text-white shadow-xs font-semibold text-xs tracking-wider">
+            CM
           </div>
-
-          {/* Close button — only visible on mobile */}
-          <button
-            onClick={onClose}
-            className="md:hidden p-1 rounded-lg text-[#737B8C] hover:bg-[#F7F8FC] dark:hover:bg-white/[0.06] transition-colors"
-            aria-label="Close sidebar"
-          >
-            <X size={18} />
-          </button>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="font-semibold text-sm tracking-tight text-slate-900 dark:text-slate-100 truncate"
+                style={{ fontFamily: 'Poppins, sans-serif' }}
+              >
+                CampusMate
+              </span>
+              <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-400">
+                v1.2
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+              DTU Campus · Sem 5
+            </p>
+          </div>
         </div>
 
-        {/* ── Navigation section ── */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {/* Section label */}
-          <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#737B8C] dark:text-[#A0A8B8]">
-            Menu
-          </p>
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="md:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+          aria-label="Close menu"
+        >
+          <X size={16} />
+        </button>
+      </div>
 
-          <ul className="space-y-0.5">
-            {navItems.map(({ label, icon: Icon, path, accentColor }) => (
-              <li key={path}>
-                {/* NavLink provides isActive to both className and children callbacks */}
+      {/* ── Navigation Sections ── */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        {navSections.map((section) => (
+          <div key={section.title} className="space-y-1">
+            <p className="px-2.5 text-[10px] font-medium tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+              {section.title}
+            </p>
+
+            <div className="space-y-0.5">
+              {section.items.map(({ label, icon: Icon, path, badge, badgeColor }) => (
                 <NavLink
+                  key={path}
                   to={path}
-                  onClick={onClose} // close mobile drawer on nav
+                  onClick={onClose}
                   className={({ isActive }) =>
                     [
-                      'flex items-center gap-3 px-2 py-2.5 rounded-xl text-sm font-medium transition-colors relative',
+                      'group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150',
                       isActive
-                        ? 'bg-[#EAF2FF] dark:bg-white/[0.06] text-[#242B3A] dark:text-[#F1F1FC]'
-                        : 'text-[#737B8C] dark:text-[#A0A8B8] hover:bg-[#F7F8FC] dark:hover:bg-white/[0.04]',
+                        ? 'bg-white dark:bg-white/[0.08] text-slate-900 dark:text-white shadow-xs border border-slate-200/60 dark:border-white/[0.08]'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/70 dark:hover:bg-white/[0.03]',
                     ].join(' ')
                   }
                 >
                   {({ isActive }) => (
                     <>
-                      {/* Icon — colored with accentColor when active, muted otherwise */}
-                      <Icon
-                        size={18}
-                        style={{ color: isActive ? accentColor : undefined }}
-                        className={isActive ? '' : 'text-[#737B8C] dark:text-[#A0A8B8]'}
-                        strokeWidth={isActive ? 2.2 : 1.8}
-                      />
-
-                      {/* Nav label */}
-                      <span className="flex-1 truncate">{label}</span>
-
-                      {/* Active indicator dot */}
-                      {isActive && (
-                        <span
-                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: accentColor }}
+                      <div className="flex items-center gap-2.5 truncate">
+                        <Icon
+                          size={16}
+                          className={[
+                            'transition-colors flex-shrink-0',
+                            isActive
+                              ? 'text-[#5B8DEF] dark:text-[#94B8FF]'
+                              : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300',
+                          ].join(' ')}
+                          strokeWidth={isActive ? 2.2 : 1.75}
                         />
+                        <span className="truncate">{label}</span>
+                      </div>
+
+                      {badge && (
+                        <span
+                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${badgeColor || 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400'}`}
+                        >
+                          {badge}
+                        </span>
                       )}
                     </>
                   )}
                 </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
 
-        {/* ── Footer area ── */}
-        <div className="px-4 py-3 border-t border-[#E2E8F0] dark:border-white/[0.07] flex-shrink-0">
-          <p className="text-[11px] text-[#737B8C] dark:text-[#A0A8B8]">
-            <span className="font-medium">CampusMate</span> &nbsp;v1.0.0
-          </p>
-        </div>
-      </aside>
-    </>
+      {/* ── Student Mini-Profile & Campus Pulse Footer ── */}
+      <div className="p-3 border-t border-slate-200/70 dark:border-white/[0.06] flex-shrink-0 bg-white/50 dark:bg-transparent">
+        <NavLink
+          to="/profile"
+          onClick={onClose}
+          className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200 flex-shrink-0">
+            {MOCK_USER.avatarInitials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate block">
+                {MOCK_USER.name}
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" title="Active on Campus" />
+            </div>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate block">
+              {MOCK_USER.department.split(' ')[0]} · Sem {MOCK_USER.semester}
+            </span>
+          </div>
+        </NavLink>
+      </div>
+    </aside>
   )
 }
 
