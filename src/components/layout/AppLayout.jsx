@@ -7,12 +7,12 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
-function AppLayout() {
+function AppLayout({ lostFoundItems }) {
   // Controls whether the mobile sidebar drawer is open
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-[#F7F8FC] dark:bg-[#171A29] overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[var(--cm-bg)] text-[var(--cm-text)]">
       {/* Fixed sidebar — static on desktop, overlay drawer on mobile */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -27,7 +27,7 @@ function AppLayout() {
 
       {/* Main content column: topbar + scrollable page area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <Topbar onMenuClick={() => setSidebarOpen(true)} lostFoundItems={lostFoundItems} />
         <main className="flex-1 overflow-y-auto">
           {/* Child route components render here */}
           <Outlet />

@@ -1,487 +1,407 @@
-// src/pages/LostFound.jsx — CampusFind Lost and Found module
-// Post lost/found items, view details, search by location and contact finders.
-
-import { useState, useMemo } from 'react'
-import {
-  MapPin, Plus, Search, Calendar,
-  CheckCircle2, User
-} from 'lucide-react'
-import Badge, { typeBadge } from '../components/ui/Badge'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { Plus, Search, Bookmark, Bell, Upload, SlidersHorizontal } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import { MOCK_LOST_FOUND } from '../utils/mockData'
+import { MOCK_LOST_FOUND, MOCK_USER, ITEM_CATEGORY_IMAGES } from '../utils/mockData'
 
-function LostFound() {
-  const [items, setItems] = useState(MOCK_LOST_FOUND)
-  const [typeFilter, setTypeFilter] = useState('all') // 'all' | 'lost' | 'found'
-  const [showResolved, setShowResolved] = useState(false)
+const TABS = ['All', 'Lost', 'Found', 'Saved']
+const CATEGORIES = ['All', 'Electronics', 'Accessories', 'Documents', 'Books', 'Other']
+const LOCATIONS = ['All', 'Library', 'Canteen', 'Hostel', 'Labs', 'Auditorium']
+const STATUS_OPTIONS = ['All', 'Active', 'Resolved']
+const INITIAL_FORM = { type: 'lost', itemName: '', description: '', category: 'Electronics', locationTag: 'Library', location: '', dateOccurred: '', imageUrl: '' }
+
+const inputCls = 'w-full rounded border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-2 text-sm text-[var(--cm-text)] placeholder-[var(--cm-muted)] focus:border-[var(--cm-muted)] focus:outline-none'
+const labelCls = 'mb-1 block text-xs font-medium text-[var(--cm-muted)]'
+const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+function FilterGroup({ title, options, value, onChange }) {
+  return (
+    <div className="border-b border-[var(--cm-border)] pb-4">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--cm-muted)]">{title}</h3>
+      <div className="space-y-1">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onChange(opt)}
+            className={`block w-full rounded px-2.5 py-1.5 text-left text-sm transition ${
+              value === opt
+                ? 'bg-[var(--cm-secondary)] font-medium text-[var(--cm-text)]'
+                : 'text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)]/60 hover:text-[var(--cm-text)]'
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
+  const { state } = useLocation()
+  const [activeTab, setActiveTab] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [category, setCategory] = useState('All')
+  const [locationTag, setLocationTag] = useState('All')
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [bookmarkedIds, setBookmarkedIds] = useState(['lf-1'])
+  const [showActivity, setShowActivity] = useState(false)
+  const [notifications, setNotifications] = useState([
+    { id: 'n-1', text: 'Your listing "OnePlus Nord (Black)" is live in Library.', time: 'Just now' },
+  ])
+  const [selectedItem, setSelectedItem] = useState(() => items.find((i) => i.id === state?.selectedId) || null)
+  const [isFormOpen, setIsFormOpen] = useState(Boolean(state?.openAdd))
+  const [formData, setFormData] = useState(INITIAL_FORM)
 
-  // Modals
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const addNotification = (text) =>
+    setNotifications((prev) => [{ id: `n-${Date.now()}`, text, time: 'Just now' }, ...prev])
 
-  const [formData, setFormData] = useState({
-    type: 'lost',
-    itemName: '',
-    description: '',
-    location: '',
-    dateOccurred: new Date().toISOString().split('T')[0],
-    contactName: '',
-    contactInfo: '',
-  })
-  const [formError, setFormError] = useState('')
-
-  // Filtered items
-  const filteredItems = useMemo(() => {
-    return items
-      .filter((item) => {
-        if (typeFilter !== 'all' && item.type !== typeFilter) return false
-        if (!showResolved && item.isResolved) return false
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase()
-          const matchName = item.itemName.toLowerCase().includes(q)
-          const matchLoc = item.location.toLowerCase().includes(q)
-          const matchDesc = item.description?.toLowerCase().includes(q)
-          if (!matchName && !matchLoc && !matchDesc) return false
-        }
-        return true
-      })
-      .sort((a, b) => new Date(b.dateOccurred) - new Date(a.dateOccurred))
-  }, [items, typeFilter, showResolved, searchQuery])
-
-  // Handlers
-  const handleToggleResolved = (id) => {
-    setItems(prev =>
-      prev.map(it =>
-        it.id === id ? { ...it, isResolved: !it.isResolved } : it
-      )
-    )
-    if (selectedItem && selectedItem.id === id) {
-      setSelectedItem(prev => ({ ...prev, isResolved: !prev.isResolved }))
-    }
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) setFormData((prev) => ({ ...prev, imageUrl: URL.createObjectURL(file) }))
   }
 
-  const handleOpenDetail = (it) => {
-    setSelectedItem(it)
-    setIsDetailOpen(true)
-  }
-
-  const handleOpenCreate = (type = 'lost') => {
-    setFormData({
-      type,
-      itemName: '',
-      description: '',
-      location: '',
-      dateOccurred: new Date().toISOString().split('T')[0],
-      contactName: '',
-      contactInfo: '',
-    })
-    setFormError('')
-    setIsCreateOpen(true)
-  }
-
-  const handleCreateSubmit = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.itemName.trim()) {
-      setFormError('Item name is required.')
-      return
-    }
-    if (!formData.location.trim()) {
-      setFormError('Location is required.')
-      return
-    }
-    if (!formData.contactInfo.trim()) {
-      setFormError('Contact information is required.')
-      return
-    }
+    if (!formData.itemName.trim() || !formData.location.trim()) return
 
     const newItem = {
       id: `lf-${Date.now()}`,
       type: formData.type,
       itemName: formData.itemName.trim(),
-      description: formData.description.trim(),
+      description: formData.description.trim() || 'No additional details provided.',
+      category: formData.category,
+      locationTag: formData.locationTag,
       location: formData.location.trim(),
-      dateOccurred: new Date(formData.dateOccurred).toISOString(),
-      contactName: formData.contactName.trim() || 'Anonymous',
-      contactInfo: formData.contactInfo.trim(),
+      dateOccurred: formData.dateOccurred ? new Date(formData.dateOccurred).toISOString() : new Date().toISOString(),
+      imageUrl: formData.imageUrl || ITEM_CATEGORY_IMAGES[formData.category] || ITEM_CATEGORY_IMAGES.Other,
       isResolved: false,
-      userId: 'user-1',
-      createdAt: new Date().toISOString(),
+      userId: MOCK_USER.id,
     }
 
-    setItems(prev => [newItem, ...prev])
-    setIsCreateOpen(false)
+    onAddItem?.(newItem)
+    addNotification(`Posted ${newItem.type} item "${newItem.itemName}" in ${newItem.locationTag}.`)
+    setFormData(INITIAL_FORM)
+    setIsFormOpen(false)
   }
 
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
+  const toggleBookmark = (id, e) => {
+    e?.stopPropagation()
+    setBookmarkedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  const handleFoundResponse = (item) => {
+    onUpdateItem?.(item.id, { foundReported: true })
+    setSelectedItem((prev) => (prev?.id === item.id ? { ...prev, foundReported: true } : prev))
+    addNotification(`Finder response recorded for "${item.itemName}".`)
+  }
+
+  const handleMarkReturned = (item) => {
+    onUpdateItem?.(item.id, { isResolved: true })
+    setSelectedItem((prev) => (prev?.id === item.id ? { ...prev, isResolved: true } : prev))
+    addNotification(`Marked "${item.itemName}" as returned.`)
+  }
+
+  const filteredItems = items.filter((item) => {
+    if (activeTab === 'Lost' && item.type !== 'lost') return false
+    if (activeTab === 'Found' && item.type !== 'found') return false
+    if (activeTab === 'Saved' && !bookmarkedIds.includes(item.id)) return false
+    if (statusFilter === 'Active' && item.isResolved) return false
+    if (statusFilter === 'Resolved' && !item.isResolved) return false
+    if (category !== 'All' && item.category !== category) return false
+    if (locationTag !== 'All' && item.locationTag !== locationTag) return false
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return item.itemName.toLowerCase().includes(q) || item.location.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q)
+  })
+
+  const getStatusText = (item) => {
+    if (item.isResolved) return { text: 'Returned', cls: 'text-emerald-600 dark:text-emerald-400' }
+    if (item.foundReported) return { text: 'Finder Responded', cls: 'text-[var(--cm-text)]' }
+    return item.type === 'lost'
+      ? { text: 'Lost', cls: 'text-rose-600 dark:text-rose-400' }
+      : { text: 'Found', cls: 'text-emerald-600 dark:text-emerald-400' }
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
-
-      {/* ══ HEADER ══════════════════════════════════════════════ */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1
-            className="text-2xl font-bold text-[#242B3A] dark:text-[#F1F1FC]"
-            style={{ fontFamily: 'Poppins, sans-serif' }}
-          >
+    <div className="min-h-full bg-[var(--cm-bg)] text-[var(--cm-text)]">
+      {/* Marketplace Top Header */}
+      <header className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+          <span className="font-['Poppins'] text-xl font-bold tracking-tight text-[var(--cm-text)]">
             CampusFind
-          </h1>
-          <p className="text-sm text-[#737B8C] dark:text-[#A0A8B8] mt-1">
-            Lost something on campus or found an item? Help fellow students recover their belongings.
-          </p>
-        </div>
+          </span>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleOpenCreate('lost')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-xl font-medium text-xs hover:bg-red-100 transition-colors"
-          >
-            <Plus size={14} />
-            Report Lost
-          </button>
-          <button
-            onClick={() => handleOpenCreate('found')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#A9C9FF] text-white rounded-xl font-medium text-xs hover:bg-[#8BB8F8] transition-colors shadow-sm"
-          >
-            <Plus size={14} />
-            Report Found
-          </button>
-        </div>
-      </div>
-
-      {/* ══ FILTERS & SEARCH BAR ═════════════════════════════════ */}
-      <div className="bg-white dark:bg-[#252A3C] rounded-2xl border border-[#E2E8F0] dark:border-white/[0.07] p-3.5 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737B8C]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by item name, place, or keyword..."
-            className="w-full pl-9 pr-3 py-2 bg-[#F7F8FC] dark:bg-[#171A29] border border-transparent rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] placeholder-[#737B8C] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Type filter tabs */}
-          <div className="flex items-center gap-1 bg-[#F7F8FC] dark:bg-[#171A29] p-1 rounded-xl">
-            {[
-              { id: 'all', label: 'All' },
-              { id: 'lost', label: 'Lost' },
-              { id: 'found', label: 'Found' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setTypeFilter(tab.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  typeFilter === tab.id
-                    ? 'bg-white dark:bg-[#252A3C] text-[#242B3A] dark:text-[#F1F1FC] shadow-sm'
-                    : 'text-[#737B8C] dark:text-[#A0A8B8]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="order-3 w-full sm:order-2 sm:flex-1 sm:max-w-xl">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--cm-muted)]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search phones, ID cards, books, water bottles..."
+                className="w-full rounded border border-[var(--cm-border)] bg-[var(--cm-bg)] py-2 pl-9 pr-3 text-sm text-[var(--cm-text)] placeholder-[var(--cm-muted)] focus:border-[var(--cm-muted)] focus:outline-none"
+              />
+            </div>
           </div>
 
-          {/* Include resolved checkbox */}
-          <label className="flex items-center gap-2 text-xs text-[#737B8C] dark:text-[#A0A8B8] cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showResolved}
-              onChange={(e) => setShowResolved(e.target.checked)}
-              className="rounded text-[#A9C9FF] focus:ring-[#A9C9FF]"
-            />
-            Show resolved
-          </label>
+          <div className="order-2 flex items-center gap-2.5 sm:order-3">
+            <button
+              onClick={() => setShowActivity((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 rounded border border-[var(--cm-border)] bg-[var(--cm-card)] px-2.5 py-2 text-xs font-medium text-[var(--cm-text)] hover:bg-[var(--cm-secondary)]"
+            >
+              <Bell size={14} /> {notifications.length}
+            </button>
+            <button
+              onClick={() => { setFormData(INITIAL_FORM); setIsFormOpen(true) }}
+              className="inline-flex items-center gap-1.5 rounded bg-[var(--cm-accent)] px-4 py-2 text-xs font-semibold text-[var(--cm-accent-text)] hover:opacity-90"
+            >
+              <Plus size={14} /> Post an Item
+            </button>
+            <Link to="/profile" className="hidden items-center gap-2 border-l border-[var(--cm-border)] pl-3 text-xs font-medium text-[var(--cm-muted)] hover:text-[var(--cm-text)] lg:flex">
+              <span className="flex h-7 w-7 items-center justify-center rounded border border-[var(--cm-border)] bg-[var(--cm-secondary)] font-semibold text-[var(--cm-text)]">
+                {MOCK_USER.avatarInitials}
+              </span>
+              <span>{MOCK_USER.name}</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Horizontal Navigation Strip */}
+      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] px-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <nav className="flex gap-6 overflow-x-auto">
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`whitespace-nowrap border-b-2 py-3 text-sm font-medium transition ${
+                  activeTab === tab
+                    ? 'border-[var(--cm-text)] text-[var(--cm-text)]'
+                    : 'border-transparent text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
+                }`}
+              >
+                {tab}{tab === 'Saved' ? ` (${bookmarkedIds.length})` : ''}
+              </button>
+            ))}
+          </nav>
+
+          <button
+            onClick={() => setMobileFiltersOpen((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 rounded border border-[var(--cm-border)] px-2.5 py-1 text-xs font-medium text-[var(--cm-text)] md:hidden"
+          >
+            <SlidersHorizontal size={13} /> Filters
+          </button>
         </div>
       </div>
 
-      {/* ══ ITEMS GRID ═══════════════════════════════════════════ */}
-      {filteredItems.length === 0 ? (
-        <EmptyState
-          icon={MapPin}
-          title="No items found"
-          description="No lost or found posts match your criteria."
-          action={{ label: 'Report an Item', onClick: () => handleOpenCreate('lost') }}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredItems.map(item => {
-            const tBadge = typeBadge(item.type)
+      {/* Main Two-Column Marketplace Workspace */}
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 md:flex-row">
+        {/* Left-Side Filter Panel */}
+        <aside className={`${mobileFiltersOpen ? 'block' : 'hidden'} w-full shrink-0 space-y-5 md:block md:w-56`}>
+          <FilterGroup title="Categories" options={CATEGORIES} value={category} onChange={setCategory} />
+          <FilterGroup title="Campus Locations" options={LOCATIONS} value={locationTag} onChange={setLocationTag} />
+          <FilterGroup title="Status" options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+          {(category !== 'All' || locationTag !== 'All' || statusFilter !== 'All') && (
+            <button
+              onClick={() => { setCategory('All'); setLocationTag('All'); setStatusFilter('All') }}
+              className="text-xs font-medium text-[var(--cm-text)] underline"
+            >
+              Reset all filters
+            </button>
+          )}
+        </aside>
 
-            return (
-              <div
-                key={item.id}
-                className={`bg-white dark:bg-[#252A3C] rounded-2xl border border-[#E2E8F0] dark:border-white/[0.07] p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
-                  item.isResolved ? 'opacity-60' : ''
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <Badge variant={tBadge.variant}>{tBadge.label}</Badge>
-                    {item.isResolved ? (
-                      <span className="text-[11px] font-medium text-green-600 dark:text-green-400 flex items-center gap-1">
-                        <CheckCircle2 size={12} /> Resolved
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-[#737B8C] dark:text-[#A0A8B8]">
-                        Active
-                      </span>
-                    )}
-                  </div>
+        {/* Listings Area */}
+        <main className="min-w-0 flex-1 space-y-4">
+          {showActivity && (
+            <div className="rounded border border-[var(--cm-border)] bg-[var(--cm-card)] p-3">
+              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[var(--cm-text)]">
+                <span>Activity Updates</span>
+                <button onClick={() => setShowActivity(false)} className="text-[var(--cm-muted)] hover:underline">Close</button>
+              </div>
+              <ul className="space-y-1 text-xs text-[var(--cm-muted)]">
+                {notifications.slice(0, 4).map((n) => (
+                  <li key={n.id} className="flex justify-between gap-3">
+                    <span className="text-[var(--cm-text)]">{n.text}</span>
+                    <span className="shrink-0">{n.time}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-                  <h3
-                    className="font-semibold text-base text-[#242B3A] dark:text-[#F1F1FC] mb-2"
-                    style={{ fontFamily: 'Poppins, sans-serif' }}
+          <div className="flex items-center justify-between text-xs text-[var(--cm-muted)]">
+            <span>Showing {filteredItems.length} {filteredItems.length === 1 ? 'listing' : 'listings'}</span>
+            <span>{locationTag !== 'All' ? `Area: ${locationTag}` : 'All Campus Areas'}</span>
+          </div>
+
+          {filteredItems.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="No listings match your filters"
+              description="Try changing your search, category, or campus location filter."
+              action={{ label: 'Post an Item', onClick: () => setIsFormOpen(true) }}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredItems.map((item) => {
+                const st = getStatusText(item)
+                const isSaved = bookmarkedIds.includes(item.id)
+                return (
+                  <article
+                    key={item.id}
+                    onClick={() => setSelectedItem(item)}
+                    className="group cursor-pointer rounded-md border border-[var(--cm-border)] bg-[var(--cm-card)] p-2.5 transition hover:border-[var(--cm-muted)]"
                   >
-                    {item.itemName}
-                  </h3>
-
-                  <p className="text-xs text-[#737B8C] dark:text-[#A0A8B8] line-clamp-2 mb-4 leading-relaxed">
-                    {item.description}
-                  </p>
-
-                  <div className="space-y-1.5 text-xs text-[#737B8C] dark:text-[#A0A8B8] mb-5">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={13} className="text-[#FF9BAA]" />
-                      <span className="truncate">{item.location}</span>
+                    <div className="overflow-hidden rounded border border-[var(--cm-border)] bg-[var(--cm-secondary)]">
+                      <img
+                        src={item.imageUrl || ITEM_CATEGORY_IMAGES[item.category] || ITEM_CATEGORY_IMAGES.Other}
+                        alt={item.itemName}
+                        className="h-48 w-full object-cover"
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar size={13} className="text-[#5B9BF8]" />
-                      <span>{formatDate(item.dateOccurred)}</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Footer action */}
-                <div className="pt-3 border-t border-[#E2E8F0] dark:border-white/[0.05] flex items-center justify-between">
-                  <span className="text-[11px] text-[#737B8C] dark:text-[#A0A8B8] truncate max-w-[150px]">
-                    By: {item.contactName}
+                    <div className="pt-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[11px] font-semibold uppercase tracking-wide ${st.cls}`}>
+                          {st.text} · {item.category || 'Other'}
+                        </span>
+                        <button
+                          onClick={(e) => toggleBookmark(item.id, e)}
+                          aria-label="Save listing"
+                          className="text-[var(--cm-muted)] hover:text-[var(--cm-text)]"
+                        >
+                          <Bookmark size={15} className={isSaved ? 'fill-current text-[var(--cm-text)]' : ''} />
+                        </button>
+                      </div>
+                      <h3 className="mt-0.5 line-clamp-1 text-[15px] font-semibold text-[var(--cm-text)]">
+                        {item.itemName}
+                      </h3>
+                      <p className="truncate text-xs text-[var(--cm-muted)]">{item.location}</p>
+                      <p className="mt-0.5 text-[11px] text-[var(--cm-muted)]">{formatDate(item.dateOccurred)}</p>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Detailed Listing Modal */}
+      {selectedItem && (
+        <Modal isOpen={true} onClose={() => setSelectedItem(null)} title={selectedItem.itemName} size="lg">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <img
+              src={selectedItem.imageUrl || ITEM_CATEGORY_IMAGES[selectedItem.category] || ITEM_CATEGORY_IMAGES.Other}
+              alt={selectedItem.itemName}
+              className="h-64 w-full rounded border border-[var(--cm-border)] object-cover"
+            />
+            <div className="flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-semibold uppercase ${getStatusText(selectedItem).cls}`}>
+                    {getStatusText(selectedItem).text} · {selectedItem.category || 'Other'}
                   </span>
-
                   <button
-                    onClick={() => handleOpenDetail(item)}
-                    className="text-xs font-medium text-[#5B9BF8] hover:underline"
+                    onClick={() => toggleBookmark(selectedItem.id)}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--cm-muted)] hover:text-[var(--cm-text)]"
                   >
-                    View & Contact
+                    <Bookmark size={14} className={bookmarkedIds.includes(selectedItem.id) ? 'fill-current text-[var(--cm-text)]' : ''} />
+                    {bookmarkedIds.includes(selectedItem.id) ? 'Saved' : 'Save'}
                   </button>
                 </div>
+                <p className="text-sm leading-relaxed text-[var(--cm-text)]">{selectedItem.description}</p>
+                <div className="space-y-1 border-t border-[var(--cm-border)] pt-3 text-xs text-[var(--cm-muted)]">
+                  <p><strong className="text-[var(--cm-text)]">Campus Area:</strong> {selectedItem.locationTag || 'Campus'}</p>
+                  <p><strong className="text-[var(--cm-text)]">Location:</strong> {selectedItem.location}</p>
+                  <p><strong className="text-[var(--cm-text)]">Date:</strong> {formatDate(selectedItem.dateOccurred)}</p>
+                </div>
               </div>
-            )
-          })}
-        </div>
-      )}
 
-      {/* ══ DETAIL MODAL ═════════════════════════════════════════ */}
-      {selectedItem && (
-        <Modal
-          isOpen={isDetailOpen}
-          onClose={() => setIsDetailOpen(false)}
-          title={selectedItem.itemName}
-          size="md"
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Badge variant={typeBadge(selectedItem.type).variant}>
-                {typeBadge(selectedItem.type).label}
-              </Badge>
-              <button
-                onClick={() => handleToggleResolved(selectedItem.id)}
-                className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                  selectedItem.isResolved
-                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                    : 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                }`}
-              >
-                {selectedItem.isResolved ? 'Mark as Unresolved' : 'Mark as Claimed / Resolved'}
-              </button>
-            </div>
-
-            <p className="text-sm text-[#737B8C] dark:text-[#A0A8B8] leading-relaxed">
-              {selectedItem.description}
-            </p>
-
-            <div className="p-3.5 rounded-xl bg-[#F7F8FC] dark:bg-[#171A29] space-y-2 text-xs text-[#242B3A] dark:text-[#F1F1FC]">
-              <div className="flex items-center gap-2">
-                <MapPin size={14} className="text-[#FF9BAA]" />
-                <span><strong>Location:</strong> {selectedItem.location}</span>
+              <div className="flex flex-wrap gap-2 pt-2">
+                {selectedItem.type === 'lost' && !selectedItem.isResolved && !selectedItem.foundReported && (
+                  <button onClick={() => handleFoundResponse(selectedItem)} className="flex-1 rounded bg-[var(--cm-accent)] px-3 py-2 text-xs font-semibold text-[var(--cm-accent-text)] hover:opacity-90">
+                    I Found This Item
+                  </button>
+                )}
+                {selectedItem.userId === MOCK_USER.id && !selectedItem.isResolved && (
+                  <button onClick={() => handleMarkReturned(selectedItem)} className="flex-1 rounded border border-[var(--cm-border)] bg-[var(--cm-secondary)] px-3 py-2 text-xs font-semibold text-[var(--cm-text)] hover:opacity-90">
+                    Mark as Returned
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-[#5B9BF8]" />
-                <span><strong>Date:</strong> {formatDate(selectedItem.dateOccurred)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <User size={14} className="text-[#6BCB9A]" />
-                <span><strong>Posted by:</strong> {selectedItem.contactName}</span>
-              </div>
-            </div>
-
-            {/* Contact details callout */}
-            <div className="p-3.5 rounded-xl border border-[#A9C9FF]/40 bg-[#EAF2FF]/50 dark:bg-[#A9C9FF]/5 space-y-1">
-              <p className="text-xs font-semibold text-[#242B3A] dark:text-[#F1F1FC]">
-                Contact to claim or report:
-              </p>
-              <p className="text-sm font-mono text-[#5B9BF8] select-all">
-                {selectedItem.contactInfo}
-              </p>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* ══ REPORT FORM MODAL ════════════════════════════════════ */}
-      <Modal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title={formData.type === 'lost' ? 'Report Lost Item' : 'Report Found Item'}
-        size="md"
-      >
-        <form onSubmit={handleCreateSubmit} className="space-y-3.5">
-          {formError && (
-            <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 text-xs text-red-600 dark:text-red-400">
-              {formError}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-              Post Type
-            </label>
-            <div className="grid grid-cols-2 gap-2">
+      {/* Post an Item Modal */}
+      <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title="Post an Item" size="sm">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-2 gap-2">
+            {['lost', 'found'].map((t) => (
               <button
+                key={t}
                 type="button"
-                onClick={() => setFormData(f => ({ ...f, type: 'lost' }))}
-                className={`py-2 rounded-xl text-xs font-medium border text-center transition-colors ${
-                  formData.type === 'lost'
-                    ? 'border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-                    : 'border-[#E2E8F0] dark:border-white/[0.07] text-[#737B8C]'
+                onClick={() => setFormData((prev) => ({ ...prev, type: t }))}
+                className={`rounded border py-2 text-xs font-semibold capitalize ${
+                  formData.type === t
+                    ? 'border-[var(--cm-text)] bg-[var(--cm-secondary)] text-[var(--cm-text)]'
+                    : 'border-[var(--cm-border)] text-[var(--cm-muted)]'
                 }`}
               >
-                I Lost Something
+                {t} Item
               </button>
-              <button
-                type="button"
-                onClick={() => setFormData(f => ({ ...f, type: 'found' }))}
-                className={`py-2 rounded-xl text-xs font-medium border text-center transition-colors ${
-                  formData.type === 'found'
-                    ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                    : 'border-[#E2E8F0] dark:border-white/[0.07] text-[#737B8C]'
-                }`}
-              >
-                I Found Something
-              </button>
-            </div>
+            ))}
           </div>
-
           <div>
-            <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-              Item Name *
+            <label className={labelCls}>Item Photo</label>
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-[var(--cm-border)] py-2.5 text-xs text-[var(--cm-muted)] hover:text-[var(--cm-text)]">
+              <Upload size={14} /> Upload Photo
+              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
             </label>
-            <input
-              type="text"
-              value={formData.itemName}
-              onChange={(e) => setFormData(f => ({ ...f, itemName: e.target.value }))}
-              placeholder="e.g. Blue Casio Calculator fx-991EX"
-              required
-              className="w-full px-3 py-2 bg-white dark:bg-[#171A29] border border-[#E2E8F0] dark:border-white/[0.1] rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50"
-            />
+            {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" className="mt-2 h-32 w-full rounded border border-[var(--cm-border)] object-cover" />}
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-                Location *
-              </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData(f => ({ ...f, location: e.target.value }))}
-                placeholder="e.g. Library 2nd Floor"
-                required
-                className="w-full px-3 py-2 bg-white dark:bg-[#171A29] border border-[#E2E8F0] dark:border-white/[0.1] rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-                Date
-              </label>
-              <input
-                type="date"
-                value={formData.dateOccurred}
-                onChange={(e) => setFormData(f => ({ ...f, dateOccurred: e.target.value }))}
-                className="w-full px-3 py-2 bg-white dark:bg-[#171A29] border border-[#E2E8F0] dark:border-white/[0.1] rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={formData.contactName}
-                onChange={(e) => setFormData(f => ({ ...f, contactName: e.target.value }))}
-                placeholder="e.g. Arjun Mehta"
-                className="w-full px-3 py-2 bg-white dark:bg-[#171A29] border border-[#E2E8F0] dark:border-white/[0.1] rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-                Contact Info (Phone/Email) *
-              </label>
-              <input
-                type="text"
-                value={formData.contactInfo}
-                onChange={(e) => setFormData(f => ({ ...f, contactInfo: e.target.value }))}
-                placeholder="e.g. 9876543210 or email"
-                required
-                className="w-full px-3 py-2 bg-white dark:bg-[#171A29] border border-[#E2E8F0] dark:border-white/[0.1] rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50"
-              />
-            </div>
-          </div>
-
           <div>
-            <label className="block text-xs font-medium text-[#242B3A] dark:text-[#F1F1FC] mb-1.5">
-              Description / Distinguishing Features
-            </label>
-            <textarea
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData(f => ({ ...f, description: e.target.value }))}
-              placeholder="Color, brand, stickers, unique scratches, contents..."
-              className="w-full px-3 py-2 bg-white dark:bg-[#171A29] border border-[#E2E8F0] dark:border-white/[0.1] rounded-xl text-sm text-[#242B3A] dark:text-[#F1F1FC] focus:outline-none focus:ring-2 focus:ring-[#A9C9FF]/50 resize-none"
-            />
+            <label className={labelCls}>Item Name *</label>
+            <input type="text" required placeholder="e.g. Black Casio Calculator" value={formData.itemName} onChange={(e) => setFormData({ ...formData, itemName: e.target.value })} className={inputCls} />
           </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="px-4 py-2 rounded-xl border border-[#E2E8F0] dark:border-white/[0.1] text-xs font-medium text-[#737B8C]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#A9C9FF] text-white rounded-xl text-xs font-medium hover:bg-[#8BB8F8] transition-colors"
-            >
-              Post Item
-            </button>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Category</label>
+              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className={inputCls}>
+                {CATEGORIES.slice(1).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Campus Area</label>
+              <select value={formData.locationTag} onChange={(e) => setFormData({ ...formData, locationTag: e.target.value })} className={inputCls}>
+                {LOCATIONS.slice(1).map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Specific Location *</label>
+              <input type="text" required placeholder="e.g. Library 2nd Floor" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Date</label>
+              <input type="date" value={formData.dateOccurred} onChange={(e) => setFormData({ ...formData, dateOccurred: e.target.value })} className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Description</label>
+            <textarea rows={2} placeholder="Color, brand, or unique marks..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className={`${inputCls} resize-none`} />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setIsFormOpen(false)} className="rounded border border-[var(--cm-border)] px-4 py-2 text-xs font-medium text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)]">Cancel</button>
+            <button type="submit" className="rounded bg-[var(--cm-accent)] px-4 py-2 text-xs font-semibold text-[var(--cm-accent-text)] hover:opacity-90">Publish Listing</button>
           </div>
         </form>
       </Modal>

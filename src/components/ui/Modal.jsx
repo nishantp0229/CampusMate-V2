@@ -47,20 +47,20 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     >
       {/* Modal panel — stop click propagation so clicks inside don't close modal */}
       <div
-        className={`w-full ${sizeClass} bg-white dark:bg-[#252A3C] rounded-2xl shadow-xl border border-[#E2E8F0] dark:border-white/[0.07] flex flex-col max-h-[90vh]`}
+        className={`w-full ${sizeClass} bg-[var(--cm-card)] rounded-lg border border-[var(--cm-border)] flex flex-col max-h-[90vh]`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0] dark:border-white/[0.07] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--cm-border)] flex-shrink-0">
           <h2
-            className="text-base font-semibold text-[#242B3A] dark:text-[#F1F1FC]"
+            className="text-base font-semibold text-[var(--cm-text)]"
             style={{ fontFamily: 'Poppins, sans-serif' }}
           >
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#737B8C] hover:bg-[#F7F8FC] dark:hover:bg-white/[0.06] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)] hover:text-[var(--cm-text)] transition-colors"
             aria-label="Close modal"
           >
             <X size={16} />

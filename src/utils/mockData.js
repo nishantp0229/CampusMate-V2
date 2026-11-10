@@ -202,18 +202,33 @@ export const MOCK_EVENTS = [
   },
 ];
 
+const makeItemPhoto = (bg, accent, label) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360"><rect width="600" height="360" fill="${bg}"/><circle cx="500" cy="70" r="110" fill="${accent}" fill-opacity="0.22"/><circle cx="110" cy="300" r="85" fill="${accent}" fill-opacity="0.18"/><text x="36" y="192" font-family="sans-serif" font-size="28" font-weight="700" fill="#172B36" opacity="0.82">${label}</text></svg>`
+  )}`;
+
+export const ITEM_CATEGORY_IMAGES = {
+  Electronics: makeItemPhoto('#E7EEED', '#4A5C6A', 'Electronics'),
+  Accessories: makeItemPhoto('#E7EEED', '#52646D', 'Accessories'),
+  Documents: makeItemPhoto('#E7EEED', '#253745', 'ID & Documents'),
+  Books: makeItemPhoto('#E7EEED', '#4A5C6A', 'Books & Notes'),
+  Other: makeItemPhoto('#E7EEED', '#52646D', 'Campus Item'),
+};
+
 // ─── LOST & FOUND ───────────────────────────────────────────
 // 7 lost/found items on campus
 export const MOCK_LOST_FOUND = [
   {
     id: 'lf-1',
     type: 'lost',
+    category: 'Electronics',
+    locationTag: 'Library',
     itemName: 'OnePlus Nord (Black)',
     description:
       'Black OnePlus Nord CE 3 with a cracked screen protector and a navy blue silicone case. Last seen near the library vending machines.',
     location: 'Central Library, Ground Floor',
     dateOccurred: '2026-11-05T13:30:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Electronics,
     contactInfo: '9876543210',
     contactName: 'Rahul Verma',
     isResolved: false,
@@ -223,12 +238,14 @@ export const MOCK_LOST_FOUND = [
   {
     id: 'lf-2',
     type: 'found',
+    category: 'Accessories',
+    locationTag: 'Canteen',
     itemName: 'Blue Tupperware Water Bottle',
     description:
       'Blue Tupperware bottle (1 litre) with a white flip cap. Has a small DTU sticker on the side. Found near the canteen tables.',
     location: 'DTU Main Canteen',
     dateOccurred: '2026-11-06T12:15:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Accessories,
     contactInfo: 'sneha.k@dtu.ac.in',
     contactName: 'Sneha Kapoor',
     isResolved: false,
@@ -238,12 +255,14 @@ export const MOCK_LOST_FOUND = [
   {
     id: 'lf-3',
     type: 'lost',
+    category: 'Electronics',
+    locationTag: 'Labs',
     itemName: 'JBL TWS Earbuds',
     description:
       'JBL Tune 230 NC True Wireless earbuds in a white charging case. Left earbud has a small scratch. Missing since Monday morning.',
-    location: 'CSE Department Corridor',
+    location: 'CSE Lab Corridor',
     dateOccurred: '2026-11-03T09:00:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Electronics,
     contactInfo: '8765432109',
     contactName: 'Karan Singh',
     isResolved: true,
@@ -253,12 +272,14 @@ export const MOCK_LOST_FOUND = [
   {
     id: 'lf-4',
     type: 'found',
+    category: 'Documents',
+    locationTag: 'Auditorium',
     itemName: 'Student ID Card — Priya Sharma',
     description:
-      'DTU student ID card for Priya Sharma, Roll No. 2K22/CO/178, CSE 4th year. Found near the main gate security cabin.',
-    location: 'Main Gate, DTU',
+      'DTU student ID card for Priya Sharma, Roll No. 2K22/CO/178, CSE 4th year. Found near the auditorium entrance desk.',
+    location: 'Auditorium Entrance, DTU',
     dateOccurred: '2026-11-07T08:45:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Documents,
     contactInfo: 'security@dtu.ac.in',
     contactName: 'Security Cabin',
     isResolved: false,
@@ -268,12 +289,14 @@ export const MOCK_LOST_FOUND = [
   {
     id: 'lf-5',
     type: 'lost',
+    category: 'Books',
+    locationTag: 'Labs',
     itemName: 'Physics Notebook — Sem 5',
     description:
       'Spiral-bound notebook with "Applied Physics Sem 5" written on the cover. Has handwritten notes from Unit 1–4 and multiple Post-it notes. Very important before exams!',
-    location: 'Physics Department, Room 204',
+    location: 'Physics Lab, Room 204',
     dateOccurred: '2026-11-04T16:00:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Books,
     contactInfo: 'arjun.mehta@dtu.ac.in',
     contactName: 'Arjun Mehta',
     isResolved: false,
@@ -283,12 +306,14 @@ export const MOCK_LOST_FOUND = [
   {
     id: 'lf-6',
     type: 'found',
+    category: 'Accessories',
+    locationTag: 'Hostel',
     itemName: 'Black Folding Umbrella',
     description:
-      'Black automatic folding umbrella with a wooden handle. Brand: Amazon Basics. Found on the bench outside the Admin Block after the last rain.',
-    location: 'Admin Block Entrance',
+      'Black automatic folding umbrella with a wooden handle. Brand: Amazon Basics. Found on the bench outside the hostel common room.',
+    location: 'Aryabhatta Hostel Common Room',
     dateOccurred: '2026-11-02T18:00:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Accessories,
     contactInfo: '7654321098',
     contactName: 'Meera Joshi',
     isResolved: true,
@@ -298,12 +323,14 @@ export const MOCK_LOST_FOUND = [
   {
     id: 'lf-7',
     type: 'lost',
+    category: 'Accessories',
+    locationTag: 'Hostel',
     itemName: 'Nike Running Shoes (Size 9)',
     description:
-      'Nike Air Max 270 in white/grey colorway, size UK 9. Lost in the gym locker room. Has my name written inside with a marker: "Arjun".',
-    location: 'DTU Sports Complex Gym',
+      'Nike Air Max 270 in white/grey colorway, size UK 9. Lost in the hostel gym locker room. Has my name written inside with a marker: "Arjun".',
+    location: 'Hostel Gym Locker Room',
     dateOccurred: '2026-11-01T07:30:00.000Z',
-    imageUrl: null,
+    imageUrl: ITEM_CATEGORY_IMAGES.Accessories,
     contactInfo: '9876543210',
     contactName: 'Arjun Mehta',
     isResolved: false,
@@ -411,4 +438,12 @@ export const MOCK_RESOURCES = [
     tags: ['React', 'JavaScript', 'frontend', 'web dev'],
     createdAt: '2026-10-22T16:00:00.000Z',
   },
+];
+
+// ─── TODAY'S SCHEDULE ───────────────────────────────────────
+export const MOCK_TODAY_SCHEDULE = [
+  { id: 'sch-1', time: '09:00 AM', title: 'Data Structures & Algorithms', type: 'Class', location: 'Room 204, Academic Block' },
+  { id: 'sch-2', time: '11:00 AM', title: 'DBMS Practical Lab', type: 'Lab', location: 'Computer Lab 2, CSE Block' },
+  { id: 'sch-3', time: '02:00 PM', title: 'DBMS Quiz — Unit 1 & 2', type: 'Exam', location: 'Seminar Hall B' },
+  { id: 'sch-4', time: '04:30 PM', title: 'ACM Coding Meetup', type: 'Activity', location: 'Innovation Hub, Block A' },
 ];

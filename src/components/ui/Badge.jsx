@@ -5,13 +5,13 @@
 // ─── COLOR MAPPING ──────────────────────────────────────────
 // Maps variant names to Tailwind class strings
 const VARIANT_CLASSES = {
-  primary: 'bg-[#EAF2FF] text-[#5B9BF8] dark:bg-[#A9C9FF]/10 dark:text-[#A9C9FF]',
-  success: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
-  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-  danger:  'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
-  purple:  'bg-[#F0EBFF] text-[#9B7FE8] dark:bg-[#C8B6FF]/10 dark:text-[#C8B6FF]',
-  orange:  'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400',
-  default: 'bg-[#F7F8FC] text-[#737B8C] dark:bg-white/5 dark:text-[#A0A8B8]',
+  primary: 'bg-[var(--cm-secondary)] text-[var(--cm-text)]',
+  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+  danger:  'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300',
+  purple:  'bg-[var(--cm-secondary)] text-[var(--cm-muted)]',
+  orange:  'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300',
+  default: 'bg-[var(--cm-secondary)] text-[var(--cm-muted)]',
 };
 
 // ─── BADGE COMPONENT ────────────────────────────────────────

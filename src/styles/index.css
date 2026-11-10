@@ -1,41 +1,35 @@
 /* ─── Google Fonts — must come BEFORE @import "tailwindcss" ─── */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* Tailwind CSS v4 — single import directive */
 @import "tailwindcss";
 
-/* Class-based dark mode: dark: variants activate when any ancestor has .dark class.
-   We add/remove .dark on <html> in App.jsx via the theme toggle. */
 @custom-variant dark (&:is(.dark *));
 
-/* ─── Design Tokens (CSS Custom Properties) ──────────── */
-@theme {
-  /* Fonts */
-  --font-heading: 'Poppins', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  /* Brand colours - refined academic palette */
-  --color-primary: #94B8FF;      /* refined pastel blue */
-  --color-secondary: #C2B0FF;    /* soft lavender */
-  --color-ice: #EFF5FF;          /* subtle ice */
-  --color-soft-lav: #F4F0FF;     /* subtle lavender */
-
-  /* Light theme */
-  --color-bg: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-text: #1E2533;
-  --color-muted: #64748B;
-  --color-border: #E2E8F0;
-
-  /* Dark theme */
-  --color-dark-bg: #0F121C;
-  --color-dark-surface: #171C28;
-  --color-dark-sidebar: #131722;
-  --color-dark-text: #EDF1F7;
+/* ─── CampusMate Muted Blue-Grey Design Tokens ───────────── */
+:root {
+  --cm-bg: #F4F7F6;
+  --cm-surface: #FFFFFF;
+  --cm-card: #FFFFFF;
+  --cm-secondary: #E7EEED;
+  --cm-border: #C7D2D1;
+  --cm-text: #172B36;
+  --cm-muted: #52646D;
+  --cm-accent: #253745;
+  --cm-accent-text: #FFFFFF;
 }
 
-/* ─── Base Styles ────────────────────────────────────── */
+.dark {
+  --cm-bg: #06141B;
+  --cm-surface: #11212D;
+  --cm-card: #253745;
+  --cm-secondary: #4A5C6A;
+  --cm-border: #4A5C6A;
+  --cm-text: #CCD0CF;
+  --cm-muted: #9BA8AB;
+  --cm-accent: #4A5C6A;
+  --cm-accent-text: #CCD0CF;
+}
+
 *,
 *::before,
 *::after {
@@ -48,8 +42,8 @@ html {
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #F8FAFC;
-  color: #1E2533;
+  background-color: var(--cm-bg);
+  color: var(--cm-text);
   margin: 0;
   padding: 0;
   min-height: 100vh;
@@ -57,36 +51,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Dark mode body override */
-.dark body,
-body.dark {
-  background-color: #0F121C;
-  color: #EDF1F7;
-}
-
-/* ─── Typography Helpers ─────────────────────────────── */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Poppins', sans-serif;
   letter-spacing: -0.02em;
 }
 
-/* ─── Refined Editorial Surface Styles ─────────────────── */
-.surface-panel {
-  background-color: #FFFFFF;
-  border-radius: 0.875rem;
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.dark .surface-panel {
-  background-color: #171C28;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
-}
-
-/* ─── Focus ring (accessibility) ────────────────────── */
 :focus-visible {
-  outline: 2px solid #94B8FF;
+  outline: 2px solid var(--cm-muted);
   outline-offset: 2px;
 }
