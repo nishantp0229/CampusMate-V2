@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 // Layout (shared shell for authenticated pages)
 import AppLayout from './components/layout/AppLayout'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Public pages
 import Landing  from './pages/Landing'
@@ -53,27 +54,29 @@ function App() {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <BrowserRouter>
-        <Routes>
-          {/* ── Public ─────────────────────────── */}
-          <Route path="/"       element={<Landing />} />
-          <Route path="/login"  element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
+            {/* ── Public ─────────────────────────── */}
+            <Route path="/"       element={<Landing />} />
+            <Route path="/login"  element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
 
-          {/* ── Authenticated (share sidebar + topbar via AppLayout) ── */}
-          <Route element={<AppLayout lostFoundItems={lostFoundItems} />}>
-            <Route path="/dashboard"  element={<Dashboard lostFoundItems={lostFoundItems} />} />
-            <Route path="/planner"    element={<Planner />} />
-            <Route path="/events"     element={<Events />} />
-            <Route path="/lost-found" element={<LostFound items={lostFoundItems} onAddItem={addLostFoundItem} onUpdateItem={updateLostFoundItem} />} />
-            <Route path="/resources"  element={<Resources />} />
-            <Route path="/profile"    element={<Profile />} />
-          </Route>
+            {/* ── Authenticated (share sidebar + topbar via AppLayout) ── */}
+            <Route element={<AppLayout lostFoundItems={lostFoundItems} />}>
+              <Route path="/dashboard"  element={<Dashboard lostFoundItems={lostFoundItems} />} />
+              <Route path="/planner"    element={<Planner />} />
+              <Route path="/events"     element={<Events />} />
+              <Route path="/lost-found" element={<LostFound items={lostFoundItems} onAddItem={addLostFoundItem} onUpdateItem={updateLostFoundItem} />} />
+              <Route path="/resources"  element={<Resources />} />
+              <Route path="/profile"    element={<Profile />} />
+            </Route>
 
-          {/* ── Fallback ───────────────────────── */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+            {/* ── Fallback ───────────────────────── */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </ErrorBoundary>
     </ThemeContext.Provider>
   )
 }
