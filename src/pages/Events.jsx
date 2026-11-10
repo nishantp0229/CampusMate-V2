@@ -1,25 +1,67 @@
+// src/pages/Events.jsx — CampusConnect events & student clubs inspired by Campus Compass
+
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { CalendarDays, Plus, Search, MapPin, Clock } from 'lucide-react'
-import Badge from '../components/ui/Badge'
+import {
+  CalendarDays,
+  Plus,
+  Search,
+  MapPin,
+  Clock,
+  Users,
+  Sparkles,
+  CheckCircle,
+} from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import { MOCK_EVENTS } from '../utils/mockData'
 
-const makeCover = (label) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="240" viewBox="0 0 600 240"><rect width="600" height="240" fill="#E7EEED"/><circle cx="510" cy="45" r="90" fill="#4A5C6A" fill-opacity="0.18"/><circle cx="95" cy="205" r="70" fill="#253745" fill-opacity="0.12"/><text x="32" y="132" font-family="sans-serif" font-size="26" font-weight="700" fill="#172B36" opacity="0.8">${label}</text></svg>`
-  )}`
+const CLUBS = [
+  {
+    name: 'DTU ACM Student Chapter',
+    category: 'Technical',
+    tagline: 'Competitive programming, open-source hacks & FAANG prep',
+    members: '450+ Members',
+    badge: 'Flagship Club',
+    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=700&q=80',
+  },
+  {
+    name: 'AI & Machine Learning Club',
+    category: 'Research',
+    tagline: 'Kaggle challenges, LLM fine-tuning & computer vision',
+    members: '320+ Members',
+    badge: 'High Impact',
+    image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=700&q=80',
+  },
+  {
+    name: 'Nritya & Music Council (AURORA)',
+    category: 'Cultural',
+    tagline: 'Band nights, street plays, classical dance & annual fest',
+    members: '280+ Members',
+    badge: 'Fest Champions',
+    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=700&q=80',
+  },
+  {
+    name: 'DTU Blue Thunder Sports Council',
+    category: 'Athletics',
+    tagline: 'T20 cricket, football leagues, basketball & athletics',
+    members: '500+ Athletes',
+    badge: 'Inter-College Cup',
+    image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=700&q=80',
+  },
+]
 
-const CATEGORY_INFO = {
-  Technical: { variant: 'primary', cover: makeCover('Technical Event') },
-  Cultural: { variant: 'default', cover: makeCover('Cultural Event') },
-  Sports: { variant: 'success', cover: makeCover('Sports Event') },
-}
+const CLUB_PATHWAY = [
+  { step: '01', title: 'Attend the Club Fair', desc: 'Visit booths during fresher orientation week and see live projects.' },
+  { step: '02', title: 'Follow & Connect', desc: 'Join the club WhatsApp groups, Discord servers, and GitHub repos.' },
+  { step: '03', title: 'Try a Mini Task', desc: 'Participate in beginner-friendly hackathons or audition workshops.' },
+  { step: '04', title: 'Apply & Get Selected', desc: 'Interview with senior leads and start organizing flagship fests!' },
+]
 
 const getCategoryGroup = (category) => {
-  if (category === 'cultural' || category === 'Cultural') return 'Cultural'
-  if (category === 'sports' || category === 'Sports') return 'Sports'
+  const c = category?.toLowerCase() || ''
+  if (c.includes('cultural') || c.includes('art') || c.includes('music')) return 'Cultural'
+  if (c.includes('sports') || c.includes('cricket') || c.includes('football')) return 'Sports'
   return 'Technical'
 }
 
@@ -29,19 +71,52 @@ const formatDate = (dateStr) =>
 const formatTime = (dateStr) =>
   new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
-const INITIAL_FORM = { title: '', category: 'Technical', date: '', time: '10:00', location: '', image: '', description: '' }
+const formatDateBlock = (dateStr) => {
+  const d = new Date(dateStr)
+  return {
+    month: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+    day: d.getDate(),
+  }
+}
+
+const INITIAL_FORM = {
+  title: '',
+  category: 'Technical',
+  date: '',
+  time: '10:00',
+  location: '',
+  description: '',
+}
+
 const INPUT_CLASS =
-  'w-full rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-2 text-sm text-[var(--cm-text)] focus:border-[var(--cm-muted)] focus:outline-none'
-const LABEL_CLASS = 'mb-1 block text-xs font-medium text-[var(--cm-muted)]'
+  'w-full rounded-xl border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3.5 py-2.5 text-sm text-[var(--cm-text)] focus:border-[var(--cm-accent)] focus:outline-none transition'
+const LABEL_CLASS = 'mb-1 block text-xs font-bold text-[var(--cm-muted)] uppercase tracking-wider'
 
 function Events() {
   const { state } = useLocation()
   const [events, setEvents] = useState(MOCK_EVENTS)
   const [selectedFilter, setSelectedFilter] = useState('All Events')
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedEvent, setSelectedEvent] = useState(() => MOCK_EVENTS.find((e) => e.id === state?.selectedId) || null)
+  const [selectedEvent, setSelectedEvent] = useState(() =>
+    MOCK_EVENTS.find((e) => e.id === state?.selectedId) || null
+  )
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [formData, setFormData] = useState(INITIAL_FORM)
+  const [registeredEvents, setRegisteredEvents] = useState(
+    new Set(MOCK_EVENTS.filter((e) => e.isRegistered).map((e) => e.id))
+  )
+
+  const toggleRSVP = (eventId) => {
+    setRegisteredEvents((prev) => {
+      const next = new Set(prev)
+      if (next.has(eventId)) {
+        next.delete(eventId)
+      } else {
+        next.add(eventId)
+      }
+      return next
+    })
+  }
 
   const filteredEvents = events
     .filter((event) => {
@@ -52,7 +127,8 @@ function Events() {
       return (
         event.title.toLowerCase().includes(q) ||
         event.location.toLowerCase().includes(q) ||
-        event.description?.toLowerCase().includes(q)
+        event.description?.toLowerCase().includes(q) ||
+        event.organizer?.toLowerCase().includes(q)
       )
     })
     .sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -61,194 +137,440 @@ function Events() {
     e.preventDefault()
     if (!formData.title.trim() || !formData.location.trim()) return
 
-    const dateTime = formData.date ? `${formData.date}T${formData.time || '10:00'}` : new Date().toISOString()
+    const dateTime = formData.date
+      ? `${formData.date}T${formData.time || '10:00'}`
+      : new Date().toISOString()
+
     const newEvent = {
       id: `event-${Date.now()}`,
       title: formData.title.trim(),
-      category: formData.category,
+      category: formData.category.toLowerCase(),
       date: new Date(dateTime).toISOString(),
       location: formData.location.trim(),
-      image: formData.image.trim(),
-      description: formData.description.trim() || 'Campus event open to all students.',
-      organizer: 'Campus Community',
+      image: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
+      description: formData.description.trim() || 'Exciting campus event open to all students.',
+      organizer: 'Student Activity Centre',
+      attendees: 1,
+      isRegistered: true,
     }
 
     setEvents((prev) => [newEvent, ...prev])
+    setRegisteredEvents((prev) => new Set(prev).add(newEvent.id))
     setFormData(INITIAL_FORM)
     setIsAddOpen(false)
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-4 border-b border-[var(--cm-border)] pb-5 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="font-['Poppins'] text-2xl font-semibold text-[var(--cm-text)]">CampusConnect</h1>
-          <p className="mt-1 text-sm text-[var(--cm-muted)]">
-            Discover upcoming technical, cultural, and sports events on campus.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsAddOpen(true)}
-          className="inline-flex items-center gap-1.5 self-start rounded-lg bg-[var(--cm-accent)] px-4 py-2 text-xs font-medium text-[var(--cm-accent-text)] transition hover:opacity-90"
-        >
-          <Plus size={15} /> Add Event
-        </button>
-      </div>
+    <div className="space-y-10 pb-16">
+      {/* ── 1. CAMPUSCONNECT HERO HEADER (Campus Compass Clubs style) ── */}
+      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
+                <Sparkles size={15} className="text-[#FFC72C]" />
+                <span>Find Your Tribe & Build Real-World Skills</span>
+              </div>
+              <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
+                CampusConnect: Clubs, Fests & Hackathons 🎪
+              </h1>
+              <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
+                Connect with flagship technical chapters, cultural councils, and athletic teams. Register for campus events with one tap.
+              </p>
+            </div>
 
-      {/* Search & Category Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--cm-muted)]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search events or venue..."
-            className="w-full rounded-lg border border-[var(--cm-border)] bg-[var(--cm-card)] py-2 pl-9 pr-3 text-sm text-[var(--cm-text)] placeholder-[var(--cm-muted)] focus:border-[var(--cm-muted)] focus:outline-none"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-1 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-card)] p-1">
-          {['All Events', 'Technical', 'Cultural', 'Sports'].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setSelectedFilter(tab)}
-              className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
-                selectedFilter === tab
-                  ? 'bg-[var(--cm-secondary)] text-[var(--cm-text)]'
-                  : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
-              }`}
+              onClick={() => setIsAddOpen(true)}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
             >
-              {tab}
+              <Plus size={16} /> Submit College Event
             </button>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Events Grid */}
-      {filteredEvents.length === 0 ? (
-        <EmptyState
-          icon={CalendarDays}
-          title="No events found"
-          description="Try clearing your search or selecting another category."
-          action={{ label: 'Add Event', onClick: () => setIsAddOpen(true) }}
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {filteredEvents.map((event) => {
-            const category = getCategoryGroup(event.category)
-            const info = CATEGORY_INFO[category]
-            return (
-              <div
-                key={event.id}
-                className="flex flex-col overflow-hidden rounded-lg border border-[var(--cm-border)] bg-[var(--cm-card)] transition hover:border-[var(--cm-muted)]"
-              >
-                <img src={event.image || info.cover} alt={event.title} className="h-36 w-full border-b border-[var(--cm-border)] object-cover" />
-                <div className="flex flex-1 flex-col justify-between p-4">
-                  <div>
-                    <Badge variant={info.variant}>{category}</Badge>
-                    <h3 className="mt-2.5 line-clamp-1 font-['Poppins'] text-base font-semibold text-[var(--cm-text)]">
-                      {event.title}
-                    </h3>
-                    <div className="mt-2.5 space-y-1.5 text-xs text-[var(--cm-muted)]">
-                      <p className="flex items-center gap-1.5">
-                        <Clock size={13} />
-                        {formatDate(event.date)} · {formatTime(event.date)}
-                      </p>
-                      <p className="flex items-center gap-1.5 truncate">
-                        <MapPin size={13} className="shrink-0" />
-                        <span className="truncate">{event.location}</span>
-                      </p>
+          {/* Interactive Club Wonder Cards Rail (Campus Compass style) */}
+          <div className="pt-8 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--cm-muted)]">
+                Flagship Student Societies & Teams:
+              </p>
+              <span className="text-xs font-semibold text-[#AA2347] dark:text-[#FFC72C]">
+                Recruiting Freshers & Juniors
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {CLUBS.map((club, idx) => (
+                <div
+                  key={idx}
+                  className="group overflow-hidden rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] hover:border-[var(--cm-accent)]/80 hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div className="relative h-32 w-full overflow-hidden">
+                    <img
+                      src={club.image}
+                      alt={club.name}
+                      className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute top-2.5 left-2.5">
+                      <span className="rounded-md bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+                        {club.category}
+                      </span>
+                    </div>
+                    <div className="absolute top-2.5 right-2.5">
+                      <span className="rounded-md bg-[#AA2347] text-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-xs">
+                        {club.badge}
+                      </span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedEvent(event)}
-                    className="mt-4 w-full rounded-md border border-[var(--cm-border)] bg-[var(--cm-secondary)] py-2 text-xs font-medium text-[var(--cm-text)] transition hover:opacity-90"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
 
-      {/* Event Details Modal */}
-      {selectedEvent && (
-        <Modal isOpen={true} onClose={() => setSelectedEvent(null)} title={selectedEvent.title} size="md">
-          <div className="space-y-4">
-            <img
-              src={selectedEvent.image || CATEGORY_INFO[getCategoryGroup(selectedEvent.category)].cover}
-              alt={selectedEvent.title}
-              className="h-44 w-full rounded-lg border border-[var(--cm-border)] object-cover"
-            />
-            <div className="flex items-center justify-between">
-              <Badge variant={CATEGORY_INFO[getCategoryGroup(selectedEvent.category)].variant}>
-                {getCategoryGroup(selectedEvent.category)}
-              </Badge>
-              {selectedEvent.organizer && (
-                <span className="text-xs text-[var(--cm-muted)]">By {selectedEvent.organizer}</span>
-              )}
+                  <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)] group-hover:text-[#AA2347] transition">
+                        {club.name}
+                      </h3>
+                      <p className="text-xs text-[var(--cm-muted)] line-clamp-2 leading-relaxed mt-1">
+                        {club.tagline}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[var(--cm-border)]/60 flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {club.members}
+                      </span>
+                      <span className="text-[var(--cm-muted)] font-semibold group-hover:underline">
+                        Explore →
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="text-sm leading-relaxed text-[var(--cm-text)]">{selectedEvent.description}</p>
-            <div className="space-y-1.5 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface)] p-3 text-xs text-[var(--cm-muted)]">
-              <p className="flex items-center gap-2">
-                <Clock size={14} />
-                {formatDate(selectedEvent.date)} at {formatTime(selectedEvent.date)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl space-y-10 px-4 sm:px-6 lg:px-8">
+        {/* ── 2. "FROM CURIOUS FRESHER TO ACTIVE MEMBER" PATHWAY (Campus Compass) ── */}
+        <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs">
+          <div className="mb-6">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
+              Senior Advice & Roadmaps
+            </span>
+            <h2 className="font-['Poppins'] text-xl sm:text-2xl font-extrabold text-[var(--cm-text)]">
+              From Curious Fresher to Active Club Member 🚀
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--cm-muted)] mt-1">
+              How recruitment works at university societies — follow the four proven steps.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {CLUB_PATHWAY.map((item, index) => (
+              <div
+                key={index}
+                className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)]/60 p-4.5 space-y-2 relative"
+              >
+                <span className="font-mono text-2xl font-extrabold text-[#AA2347]/40 dark:text-[#FFC72C]/40">
+                  {item.step}
+                </span>
+                <h4 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)]">
+                  {item.title}
+                </h4>
+                <p className="text-xs text-[var(--cm-muted)] leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 3. SEARCH & CATEGORY FILTERS ── */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          {/* Category Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-1 text-xs shadow-2xs">
+            {['All Events', 'Technical', 'Cultural', 'Sports'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedFilter(cat)}
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+                  selectedFilter === cat
+                    ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                    : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-80">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--cm-muted)]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search hackathons, tournaments, workshops..."
+              className="w-full rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-surface)] py-2.5 pr-4 pl-10 text-xs text-[var(--cm-text)] placeholder-[var(--cm-muted)] focus:border-[var(--cm-accent)] focus:outline-none transition shadow-2xs"
+            />
+          </div>
+        </div>
+
+        {/* ── 4. EVENT DISCOVERY GRID (Real High-Res Imagery) ── */}
+        {filteredEvents.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="No events match your criteria"
+            description="Try searching for another keyword or select 'All Events' above."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredEvents.map((event) => {
+              const { month, day } = formatDateBlock(event.date)
+              const group = getCategoryGroup(event.category)
+              const isRsvp = registeredEvents.has(event.id)
+
+              return (
+                <div
+                  key={event.id}
+                  className="flex flex-col overflow-hidden rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-xs hover:border-[var(--cm-accent)]/80 hover:shadow-md transition-all duration-300 group"
+                >
+                  {/* Card Banner Image */}
+                  <div className="relative h-48 w-full overflow-hidden bg-[var(--cm-secondary)]">
+                    <img
+                      src={event.image}
+                      alt={event.title}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+
+                    {/* Date badge */}
+                    <div className="absolute top-3.5 left-3.5 rounded-xl border border-white/20 bg-black/60 px-3 py-1.5 text-center shadow-lg backdrop-blur-md text-white">
+                      <span className="block text-[9px] font-extrabold uppercase text-[#FFC72C] leading-none">
+                        {month}
+                      </span>
+                      <span className="block font-['Poppins'] text-lg font-black leading-tight">
+                        {day}
+                      </span>
+                    </div>
+
+                    <div className="absolute top-3.5 right-3.5">
+                      <span className="rounded-lg bg-[var(--cm-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
+                        {group}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="flex flex-1 flex-col justify-between p-5 sm:p-6 space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-[var(--cm-muted)]">
+                        <span className="flex items-center gap-1 font-mono">
+                          <Clock size={12} className="text-[#AA2347]" /> {formatTime(event.date)}
+                        </span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1 truncate font-medium">
+                          <MapPin size={12} className="shrink-0 text-[#AA2347]" /> {event.location}
+                        </span>
+                      </div>
+
+                      <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)] leading-snug line-clamp-1 group-hover:text-[var(--cm-accent)] transition">
+                        {event.title}
+                      </h3>
+
+                      <p className="text-xs text-[var(--cm-muted)] line-clamp-2 leading-relaxed">
+                        {event.description}
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 pt-3 border-t border-[var(--cm-border)]/60">
+                      <div className="flex items-center justify-between text-xs text-[var(--cm-muted)]">
+                        <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          <Users size={13} /> {event.attendees || 0} Attending
+                        </span>
+                        <span className="text-[11px] font-medium truncate max-w-[140px]">
+                          {event.organizer || 'Student Committee'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedEvent(event)}
+                          className="flex-1 rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer"
+                        >
+                          View Details
+                        </button>
+                        <button
+                          onClick={() => toggleRSVP(event.id)}
+                          className={`rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs ${
+                            isRsvp
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-gradient-to-r from-[#AA2347] to-[#8A1B39] text-white hover:brightness-110'
+                          }`}
+                        >
+                          {isRsvp ? (
+                            <>
+                              <CheckCircle size={14} /> Registered
+                            </>
+                          ) : (
+                            'RSVP'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── EVENT DETAILS MODAL ── */}
+      {selectedEvent && (
+        <Modal
+          isOpen={Boolean(selectedEvent)}
+          onClose={() => setSelectedEvent(null)}
+          title={selectedEvent.title}
+        >
+          <div className="space-y-4">
+            <div className="overflow-hidden rounded-2xl border border-[var(--cm-border)]">
+              <img
+                src={selectedEvent.image}
+                alt={selectedEvent.title}
+                className="h-52 w-full object-cover"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div className="rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3">
+                <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Date & Timing</span>
+                <p className="mt-1 font-bold text-[var(--cm-text)]">
+                  {formatDate(selectedEvent.date)} at {formatTime(selectedEvent.date)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3">
+                <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Campus Venue</span>
+                <p className="mt-1 font-bold text-[var(--cm-text)] truncate">
+                  {selectedEvent.location}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">About This Event</span>
+              <p className="mt-1 text-xs text-[var(--cm-text)] leading-relaxed">
+                {selectedEvent.description}
               </p>
-              <p className="flex items-center gap-2">
-                <MapPin size={14} />
-                {selectedEvent.location}
-              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-secondary)]/50 p-4 text-xs flex items-center justify-between">
+              <div>
+                <p className="font-bold text-[var(--cm-text)]">Organized by {selectedEvent.organizer || 'DTU Council'}</p>
+                <p className="text-[11px] text-[var(--cm-muted)]">{selectedEvent.attendees || 0} students attending</p>
+              </div>
+              <button
+                onClick={() => toggleRSVP(selectedEvent.id)}
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+                  registeredEvents.has(selectedEvent.id)
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-[var(--cm-accent)] text-white shadow-xs'
+                }`}
+              >
+                {registeredEvents.has(selectedEvent.id) ? 'Registered ✓' : 'Register Now'}
+              </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Add Event Modal */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add New Event" size="sm">
-        <form onSubmit={handleAddEvent} className="space-y-3.5">
+      {/* ── ADD EVENT MODAL ── */}
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Submit Campus Event">
+        <form onSubmit={handleAddEvent} className="space-y-4">
           <div>
-            <label className={LABEL_CLASS}>Event Name *</label>
-            <input type="text" required placeholder="e.g. Robotics Workshop" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className={INPUT_CLASS} />
+            <label className={LABEL_CLASS}>Event Name</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. RoboWars 2026 Championship"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className={INPUT_CLASS}
+            />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL_CLASS}>Category</label>
-              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className={INPUT_CLASS}>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className={INPUT_CLASS}
+              >
                 <option value="Technical">Technical</option>
                 <option value="Cultural">Cultural</option>
                 <option value="Sports">Sports</option>
               </select>
             </div>
+
             <div>
-              <label className={LABEL_CLASS}>Location *</label>
-              <input type="text" required placeholder="e.g. Main Auditorium" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className={INPUT_CLASS} />
+              <label className={LABEL_CLASS}>Location / Venue</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Open Air Theatre"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className={INPUT_CLASS}
+              />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL_CLASS}>Date</label>
-              <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className={INPUT_CLASS} />
+              <input
+                type="date"
+                required
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className={INPUT_CLASS}
+              />
             </div>
             <div>
               <label className={LABEL_CLASS}>Time</label>
-              <input type="time" value={formData.time} onChange={(e) => setFormData({ ...formData, time: e.target.value })} className={INPUT_CLASS} />
+              <input
+                type="time"
+                value={formData.time}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                className={INPUT_CLASS}
+              />
             </div>
           </div>
+
           <div>
-            <label className={LABEL_CLASS}>Image URL (Optional)</label>
-            <input type="url" placeholder="https://..." value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className={INPUT_CLASS} />
+            <label className={LABEL_CLASS}>Event Description</label>
+            <textarea
+              rows={3}
+              placeholder="Provide event details, prizes, eligibility, and rules..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className={INPUT_CLASS}
+            />
           </div>
-          <div>
-            <label className={LABEL_CLASS}>Description</label>
-            <textarea rows={2} placeholder="Brief event details..." value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className={`${INPUT_CLASS} resize-none`} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setIsAddOpen(false)} className="rounded-lg border border-[var(--cm-border)] px-4 py-2 text-xs font-medium text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)]">Cancel</button>
-            <button type="submit" className="rounded-lg bg-[var(--cm-accent)] px-4 py-2 text-xs font-medium text-[var(--cm-accent-text)] hover:opacity-90">Add Event</button>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--cm-border)]">
+            <button
+              type="button"
+              onClick={() => setIsAddOpen(false)}
+              className="rounded-xl border border-[var(--cm-border)] px-4 py-2.5 text-xs font-bold text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)] transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+            >
+              Publish Event
+            </button>
           </div>
         </form>
       </Modal>

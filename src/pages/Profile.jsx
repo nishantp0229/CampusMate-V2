@@ -1,118 +1,291 @@
+// src/pages/Profile.jsx — Student Passport & Profile inspired by Campus Compass identity
+
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Moon, Sun, LogOut, Edit2, Check, Shield, Bell, CheckCircle2 } from 'lucide-react'
+import {
+  Shield,
+  Moon,
+  Sun,
+  Edit3,
+  Compass,
+} from 'lucide-react'
 import { useTheme } from '../App'
 import { MOCK_USER } from '../utils/mockData'
 
-const inp = 'w-full px-3 py-2 bg-[var(--cm-surface)] border border-[var(--cm-border)] rounded-lg text-sm text-[var(--cm-text)] focus:outline-none focus:border-[var(--cm-muted)]'
-const lbl = 'block text-xs font-medium text-[var(--cm-muted)] mb-1.5'
+const INPUT_CLASS =
+  'w-full rounded-xl border border-[var(--cm-border)] bg-[var(--cm-surface)] px-3.5 py-2.5 text-sm text-[var(--cm-text)] focus:border-[var(--cm-accent)] focus:outline-none transition'
+const LABEL_CLASS = 'mb-1 block text-xs font-bold text-[var(--cm-muted)] uppercase tracking-wider'
 
 function Profile() {
-  const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const [user, setUser] = useState(MOCK_USER)
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [form, setForm] = useState({ name: user.name, email: user.email, college: user.college, department: user.department, semester: user.semester })
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [form, setForm] = useState({
+    name: user.name,
+    email: user.email,
+    college: user.college,
+    department: user.department,
+    semester: user.semester,
+  })
 
-  const save = e => {
+  const save = (e) => {
     e.preventDefault()
-    setUser(prev => ({ ...prev, ...form, semester: Number(form.semester), avatarInitials: form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) }))
+    setUser((prev) => ({
+      ...prev,
+      ...form,
+      semester: Number(form.semester),
+      avatarInitials: form.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2),
+    }))
     setEditing(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const pref = (icon, title, desc, right) => (
-    <div className="flex items-center justify-between p-3.5 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface)]">
-      <div className="flex items-center gap-3">{icon}<div><p className="text-sm font-medium text-[var(--cm-text)]">{title}</p><p className="text-xs text-[var(--cm-muted)]">{desc}</p></div></div>
-      {right}
-    </div>
-  )
-
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
-      <div className="border-b border-[var(--cm-border)] pb-5">
-        <h1 className="text-2xl font-bold text-[var(--cm-text)]" style={{ fontFamily: 'Poppins, sans-serif' }}>Profile & Settings</h1>
-        <p className="text-sm text-[var(--cm-muted)] mt-1">Manage your personal details, academic info and preferences.</p>
+    <div className="space-y-10 pb-16">
+      {/* ── 1. PROFILE HERO HEADER ── */}
+      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
+                <Shield size={14} className="text-emerald-500" />
+                <span>Verified University Student Passport</span>
+              </div>
+              <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
+                Student Passport & Profile 🎓
+              </h1>
+              <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
+                Manage your collegiate credentials, academic standing, and application settings.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setForm({
+                  name: user.name,
+                  email: user.email,
+                  college: user.college,
+                  department: user.department,
+                  semester: user.semester,
+                })
+                setEditing(!editing)
+              }}
+              className="inline-flex items-center gap-2 self-start sm:self-auto rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer shadow-xs"
+            >
+              <Edit3 size={15} className="text-[#AA2347]" /> {editing ? 'Cancel Editing' : 'Edit Credentials'}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {saved && (
-        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-          <CheckCircle2 size={16} /> Profile updated successfully!
-        </div>
-      )}
+      <div className="mx-auto max-w-5xl space-y-8 px-4 sm:px-6 lg:px-8">
+        {saved && (
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 text-xs font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-xs">
+            ✓ Student credentials and profile information successfully saved.
+          </div>
+        )}
 
-      <div className="bg-[var(--cm-card)] rounded-lg border border-[var(--cm-border)] p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[var(--cm-border)]">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-lg bg-[var(--cm-accent)] text-[var(--cm-accent-text)] text-xl font-bold flex items-center justify-center">{user.avatarInitials}</div>
-            <div>
-              <h2 className="text-lg font-bold text-[var(--cm-text)]" style={{ fontFamily: 'Poppins, sans-serif' }}>{user.name}</h2>
-              <p className="text-xs text-[var(--cm-muted)] mt-0.5">{user.email}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="px-2.5 py-0.5 rounded bg-[var(--cm-secondary)] text-xs font-medium text-[var(--cm-text)]">Semester {user.semester}</span>
-                <span className="px-2.5 py-0.5 rounded bg-[var(--cm-secondary)] text-xs font-medium text-[var(--cm-muted)]">{user.department}</span>
+        {/* ── 2. UNIVERSITY DIGITAL ID CARD / STUDENT PASSPORT ── */}
+        <div className="overflow-hidden rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-md">
+          {/* Card Top Strip */}
+          <div className="border-b border-[var(--cm-border)] bg-gradient-to-r from-[#AA2347]/10 via-[#AA2347]/5 to-transparent p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#AA2347] to-[#78142F] text-white shadow-md">
+                <Compass size={22} className="text-[#FFC72C]" />
+              </div>
+              <div>
+                <span className="block text-[10px] font-extrabold uppercase tracking-widest text-[#AA2347] dark:text-[#FFC72C]">
+                  Official University Passport
+                </span>
+                <span className="block font-['Poppins'] text-base font-extrabold text-[var(--cm-text)]">
+                  {user.college}
+                </span>
+              </div>
+            </div>
+
+            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-3.5 py-1 text-xs font-extrabold">
+              Active Enrolled · Fall 2026
+            </span>
+          </div>
+
+          <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            {/* Avatar & Initials */}
+            <div className="flex flex-col items-center justify-center text-center md:col-span-4 border-b md:border-b-0 md:border-r border-[var(--cm-border)]/60 pb-6 md:pb-0 md:pr-8">
+              <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-gradient-to-br from-[#AA2347] to-[#8A1B39] text-3xl font-extrabold text-white shadow-lg shadow-[#AA2347]/30">
+                {user.avatarInitials}
+                <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-[var(--cm-surface)]" />
+              </div>
+              <h2 className="mt-4 font-['Poppins'] text-xl font-extrabold text-[var(--cm-text)]">
+                {user.name}
+              </h2>
+              <p className="text-xs text-[var(--cm-muted)] font-medium mt-0.5">{user.email}</p>
+              <span className="mt-3 rounded-lg bg-[var(--cm-secondary)] px-3 py-1 text-xs font-bold text-[var(--cm-text)]">
+                Roll No: 2K22/CO/184
+              </span>
+            </div>
+
+            {/* Academic details */}
+            <div className="space-y-4 md:col-span-8">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+                <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Department</span>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-text)] truncate">{user.department}</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Term Status</span>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-text)]">Semester {user.semester}</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Cumulative CGPA</span>
+                  <p className="mt-1 font-bold text-xs text-emerald-600 dark:text-emerald-400">8.6 / 10.0</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Completed Credits</span>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-text)]">112 / 160</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Attendance Meter</span>
+                  <p className="mt-1 font-bold text-xs text-emerald-600 dark:text-emerald-400">85% Safe</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
+                  <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Society Role</span>
+                  <p className="mt-1 font-bold text-xs text-[#AA2347] dark:text-[#FFC72C]">ACM Student Lead</p>
+                </div>
               </div>
             </div>
           </div>
-          <button onClick={() => { setForm({ name: user.name, email: user.email, college: user.college, department: user.department, semester: user.semester }); setEditing(!editing) }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[var(--cm-border)] text-xs font-medium text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition-colors">
-            <Edit2 size={13} /> {editing ? 'Cancel' : 'Edit Profile'}
-          </button>
         </div>
 
-        {editing ? (
-          <form onSubmit={save} className="pt-6 space-y-4">
-            <h3 className="text-sm font-semibold text-[var(--cm-text)]">Edit Student Details</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><label className={lbl}>Full Name</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className={inp} /></div>
-              <div><label className={lbl}>Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required className={inp} /></div>
-              <div><label className={lbl}>College</label><input value={form.college} onChange={e => setForm(f => ({ ...f, college: e.target.value }))} required className={inp} /></div>
-              <div><label className={lbl}>Department</label><input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} required className={inp} /></div>
+        {/* ── 3. EDIT CREDENTIALS FORM ── */}
+        {editing && (
+          <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs">
+            <h3 className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)] mb-4">
+              Edit Student Credentials
+            </h3>
+            <form onSubmit={save} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={lbl}>Semester</label>
-                <select value={form.semester} onChange={e => setForm(f => ({ ...f, semester: e.target.value }))} className={inp}>
-                  {[1,2,3,4,5,6,7,8,9,10].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                <label className={LABEL_CLASS}>Full Legal Name</label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Institutional Email</label>
+                <input
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>College / University</label>
+                <input
+                  type="text"
+                  required
+                  value={form.college}
+                  onChange={(e) => setForm({ ...form, college: e.target.value })}
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Branch / Department</label>
+                <input
+                  type="text"
+                  required
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Current Semester</label>
+                <select
+                  value={form.semester}
+                  onChange={(e) => setForm({ ...form, semester: e.target.value })}
+                  className={INPUT_CLASS}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                    <option key={s} value={s}>Semester {s}</option>
+                  ))}
                 </select>
               </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg border border-[var(--cm-border)] text-xs font-medium text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)]">Cancel</button>
-              <button type="submit" className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--cm-accent)] text-[var(--cm-accent-text)] rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"><Check size={14} /> Save Changes</button>
-            </div>
-          </form>
-        ) : (
-          <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            {[['College', user.college], ['Department', user.department]].map(([label, val]) => (
-              <div key={label} className="p-3 rounded-lg border border-[var(--cm-border)] bg-[var(--cm-surface)]">
-                <span className="text-[var(--cm-muted)] block mb-1">{label}</span>
-                <span className="font-semibold text-sm text-[var(--cm-text)]">{val}</span>
+
+              <div className="flex items-end justify-end gap-2 sm:col-span-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="rounded-xl border border-[var(--cm-border)] px-4 py-2.5 text-xs font-bold text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)] transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+                >
+                  Save Credentials
+                </button>
               </div>
-            ))}
+            </form>
           </div>
         )}
-      </div>
 
-      <div className="bg-[var(--cm-card)] rounded-lg border border-[var(--cm-border)] p-6 space-y-4">
-        <h3 className="text-base font-semibold text-[var(--cm-text)]" style={{ fontFamily: 'Poppins, sans-serif' }}>Preferences</h3>
-        {pref(theme === 'dark' ? <Moon size={18} className="text-[var(--cm-text)]" /> : <Sun size={18} className="text-[var(--cm-text)]" />, 'Theme Mode', `Currently using ${theme} mode.`,
-          <button onClick={toggleTheme} className="px-3.5 py-1.5 rounded-lg bg-[var(--cm-card)] border border-[var(--cm-border)] text-xs font-medium text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition-colors">Switch to {theme === 'dark' ? 'Light' : 'Dark'}</button>
-        )}
-        {pref(<Bell size={18} className="text-[var(--cm-muted)]" />, 'In-App Notifications', 'Assignment reminders and event alerts are active.',
-          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Enabled</span>
-        )}
-      </div>
+        {/* ── 4. PREFERENCES & SETTINGS ── */}
+        <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs space-y-4">
+          <h3 className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">
+            Preferences & Appearance
+          </h3>
 
-      <div className="bg-[var(--cm-card)] rounded-lg border border-[var(--cm-border)] p-6 space-y-4">
-        <h3 className="text-base font-semibold text-[var(--cm-text)]" style={{ fontFamily: 'Poppins, sans-serif' }}>Account Security</h3>
-        {pref(<Shield size={18} className="text-[var(--cm-muted)]" />, 'Authentication Provider', 'Configured for Supabase Auth (Demo session active)',
-          <button onClick={() => alert('Available after Supabase Auth is enabled.')} className="text-xs text-[var(--cm-text)] hover:underline font-medium">Change Password</button>
-        )}
-        <div className="pt-2">
-          <button onClick={() => navigate('/login')} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-semibold hover:opacity-90 transition-opacity">
-            <LogOut size={14} /> Sign Out
-          </button>
+          <div className="divide-y divide-[var(--cm-border)]/60">
+            {/* Theme Toggle */}
+            <div className="py-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-[var(--cm-text)]">Collegiate Theme Mode</p>
+                <p className="text-[11px] text-[var(--cm-muted)]">Switch between Daylight Ivory and Midnight Obsidian themes</p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer shadow-2xs"
+              >
+                {theme === 'dark' ? <Sun size={15} className="text-[#FFC72C]" /> : <Moon size={15} />}
+                {theme === 'dark' ? 'Obsidian Dark' : 'Daylight Ivory'}
+              </button>
+            </div>
+
+            {/* Notification setting */}
+            <div className="py-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-[var(--cm-text)]">Assignment & Hackathon Notices</p>
+                <p className="text-[11px] text-[var(--cm-muted)]">Receive notifications for upcoming lab evaluations</p>
+              </div>
+              <button
+                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer shadow-2xs ${
+                  notificationsEnabled
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-[var(--cm-secondary)] text-[var(--cm-muted)]'
+                }`}
+              >
+                {notificationsEnabled ? 'Active ✓' : 'Muted'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

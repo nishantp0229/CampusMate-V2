@@ -107,7 +107,7 @@ export const MOCK_TASKS = [
 ];
 
 // ─── EVENTS ─────────────────────────────────────────────────
-// 7 college events across different categories
+// 7 college events across different categories with high-res photography
 export const MOCK_EVENTS = [
   {
     id: 'event-1',
@@ -118,6 +118,7 @@ export const MOCK_EVENTS = [
     date: '2026-11-22T09:00:00.000Z',
     location: 'Innovation Hub, Block A, DTU',
     organizer: 'DTU ACM Student Chapter',
+    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://techfusion.dtu.ac.in',
     isRegistered: true,
     attendees: 312,
@@ -131,6 +132,7 @@ export const MOCK_EVENTS = [
     date: '2026-11-18T10:00:00.000Z',
     location: 'Computer Lab 3, CSE Block',
     organizer: 'AI/ML Club DTU',
+    image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://mlclub.dtu.ac.in/workshops',
     isRegistered: false,
     attendees: 78,
@@ -144,6 +146,7 @@ export const MOCK_EVENTS = [
     date: '2026-12-05T16:00:00.000Z',
     location: 'Open Air Theatre, DTU Main Campus',
     organizer: 'Student Affairs Committee',
+    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://aurora.dtu.ac.in',
     isRegistered: true,
     attendees: 2800,
@@ -157,6 +160,7 @@ export const MOCK_EVENTS = [
     date: '2026-11-14T14:00:00.000Z',
     location: 'Seminar Hall, Admin Block',
     organizer: 'Training & Placement Cell, DTU',
+    image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://tnp.dtu.ac.in/events',
     isRegistered: false,
     attendees: 450,
@@ -170,6 +174,7 @@ export const MOCK_EVENTS = [
     date: '2026-11-25T08:00:00.000Z',
     location: 'DTU Sports Ground',
     organizer: 'Sports Council DTU',
+    image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://sports.dtu.ac.in/cricket',
     isRegistered: false,
     attendees: 180,
@@ -183,6 +188,7 @@ export const MOCK_EVENTS = [
     date: '2026-11-16T11:00:00.000Z',
     location: 'Art Gallery, Student Activity Centre',
     organizer: 'DTU Photography Club',
+    image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://photoclub.dtu.ac.in',
     isRegistered: true,
     attendees: 95,
@@ -196,27 +202,23 @@ export const MOCK_EVENTS = [
     date: '2026-12-01T09:00:00.000Z',
     location: 'Computer Lab 1, CSE Block',
     organizer: 'WebDev Society DTU',
+    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=900&q=80',
     registrationUrl: 'https://webdev.dtu.ac.in/bootcamp',
     isRegistered: false,
     attendees: 55,
   },
 ];
 
-const makeItemPhoto = (bg, accent, label) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360"><rect width="600" height="360" fill="${bg}"/><circle cx="500" cy="70" r="110" fill="${accent}" fill-opacity="0.22"/><circle cx="110" cy="300" r="85" fill="${accent}" fill-opacity="0.18"/><text x="36" y="192" font-family="sans-serif" font-size="28" font-weight="700" fill="#172B36" opacity="0.82">${label}</text></svg>`
-  )}`;
-
 export const ITEM_CATEGORY_IMAGES = {
-  Electronics: makeItemPhoto('#E7EEED', '#4A5C6A', 'Electronics'),
-  Accessories: makeItemPhoto('#E7EEED', '#52646D', 'Accessories'),
-  Documents: makeItemPhoto('#E7EEED', '#253745', 'ID & Documents'),
-  Books: makeItemPhoto('#E7EEED', '#4A5C6A', 'Books & Notes'),
-  Other: makeItemPhoto('#E7EEED', '#52646D', 'Campus Item'),
+  Electronics: 'https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=600&q=80',
+  Accessories: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=600&q=80',
+  Documents: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80',
+  Books: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+  Other: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80',
 };
 
 // ─── LOST & FOUND ───────────────────────────────────────────
-// 7 lost/found items on campus
+// 7 lost/found items on campus with authentic photography
 export const MOCK_LOST_FOUND = [
   {
     id: 'lf-1',
@@ -228,7 +230,7 @@ export const MOCK_LOST_FOUND = [
       'Black OnePlus Nord CE 3 with a cracked screen protector and a navy blue silicone case. Last seen near the library vending machines.',
     location: 'Central Library, Ground Floor',
     dateOccurred: '2026-11-05T13:30:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Electronics,
+    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=600&q=80',
     contactInfo: '9876543210',
     contactName: 'Rahul Verma',
     isResolved: false,
@@ -245,7 +247,7 @@ export const MOCK_LOST_FOUND = [
       'Blue Tupperware bottle (1 litre) with a white flip cap. Has a small DTU sticker on the side. Found near the canteen tables.',
     location: 'DTU Main Canteen',
     dateOccurred: '2026-11-06T12:15:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Accessories,
+    imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=600&q=80',
     contactInfo: 'sneha.k@dtu.ac.in',
     contactName: 'Sneha Kapoor',
     isResolved: false,
@@ -257,12 +259,12 @@ export const MOCK_LOST_FOUND = [
     type: 'lost',
     category: 'Electronics',
     locationTag: 'Labs',
-    itemName: 'JBL TWS Earbuds',
+    itemName: 'JBL TWS Earbuds (White)',
     description:
       'JBL Tune 230 NC True Wireless earbuds in a white charging case. Left earbud has a small scratch. Missing since Monday morning.',
     location: 'CSE Lab Corridor',
     dateOccurred: '2026-11-03T09:00:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Electronics,
+    imageUrl: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=600&q=80',
     contactInfo: '8765432109',
     contactName: 'Karan Singh',
     isResolved: true,
@@ -279,7 +281,7 @@ export const MOCK_LOST_FOUND = [
       'DTU student ID card for Priya Sharma, Roll No. 2K22/CO/178, CSE 4th year. Found near the auditorium entrance desk.',
     location: 'Auditorium Entrance, DTU',
     dateOccurred: '2026-11-07T08:45:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Documents,
+    imageUrl: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80',
     contactInfo: 'security@dtu.ac.in',
     contactName: 'Security Cabin',
     isResolved: false,
@@ -296,7 +298,7 @@ export const MOCK_LOST_FOUND = [
       'Spiral-bound notebook with "Applied Physics Sem 5" written on the cover. Has handwritten notes from Unit 1–4 and multiple Post-it notes. Very important before exams!',
     location: 'Physics Lab, Room 204',
     dateOccurred: '2026-11-04T16:00:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Books,
+    imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
     contactInfo: 'arjun.mehta@dtu.ac.in',
     contactName: 'Arjun Mehta',
     isResolved: false,
@@ -313,7 +315,7 @@ export const MOCK_LOST_FOUND = [
       'Black automatic folding umbrella with a wooden handle. Brand: Amazon Basics. Found on the bench outside the hostel common room.',
     location: 'Aryabhatta Hostel Common Room',
     dateOccurred: '2026-11-02T18:00:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Accessories,
+    imageUrl: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=600&q=80',
     contactInfo: '7654321098',
     contactName: 'Meera Joshi',
     isResolved: true,
@@ -325,12 +327,12 @@ export const MOCK_LOST_FOUND = [
     type: 'lost',
     category: 'Accessories',
     locationTag: 'Hostel',
-    itemName: 'Nike Running Shoes (Size 9)',
+    itemName: 'Nike Air Max Running Shoes (Size 9)',
     description:
       'Nike Air Max 270 in white/grey colorway, size UK 9. Lost in the hostel gym locker room. Has my name written inside with a marker: "Arjun".',
     location: 'Hostel Gym Locker Room',
     dateOccurred: '2026-11-01T07:30:00.000Z',
-    imageUrl: ITEM_CATEGORY_IMAGES.Accessories,
+    imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80',
     contactInfo: '9876543210',
     contactName: 'Arjun Mehta',
     isResolved: false,
