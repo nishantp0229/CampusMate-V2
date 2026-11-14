@@ -8,104 +8,86 @@ import {
   Circle,
   Clock,
   MapPin,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
-  Search,
   Check,
   AlertTriangle,
-  Lightbulb,
-  Compass,
-  Award,
-  Layers,
+  Pause,
+  Play,
 } from 'lucide-react'
 import {
   MOCK_TASKS,
   MOCK_EVENTS,
   MOCK_LOST_FOUND,
-  MOCK_USER,
 } from '../utils/mockData'
 
+const photo = (name) => `${import.meta.env.BASE_URL}landing/${name}.jpg`
+
 const QUICK_TIPS = [
-  'Always carry your physical university ID card on campus! 🪪',
-  'Attendance below 75% results in exam debarment without formal medical leave ⚠️',
-  'Central Library 2nd floor has 24/7 quiet air-conditioned study pods 📚',
-  'TechFusion Hackathon registration closes this Friday — ₹1,50,000 prize pool 🚀',
-  'Found an abandoned item? Post it on CampusFind to notify the owner 🔍',
-  'Mess dinner timings are strict (7:30 PM – 9:30 PM) — don\'t miss out! 🍽️',
-  'Backup your lab projects to GitHub or Google Drive before practical evaluations 💾',
+  'A little planning makes room for a lot more living.',
+  'Check your timetable before the day gets going.',
+  'Share useful notes with someone learning alongside you.',
+  'Make time for a club, a conversation, or a coffee.',
+  'Keep an eye on deadlines and event registrations.',
 ]
 
 const HERO_CAROUSEL_SLIDES = [
   {
-    image: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1400&q=80',
-    tag: 'Campus Quadrangle',
-    badge: 'Class of 2026',
-    title: 'Welcome to DTU, Class of 2026! 🎓',
-    desc: 'Your all-in-one student compass — designed by seniors to help you master academics, discover clubs, and thrive in university life.',
-    ctaText: 'Explore Academics',
+    image: photo('architecture'),
+    tag: 'YOUR CAMPUS, ALL IN ONE PLACE',
+    title: 'Make a little more of today.',
+    desc: 'Your classes, plans, and campus moments — a little more organised, all together.',
+    ctaText: 'Open Academic Planner',
     ctaLink: '/planner',
   },
   {
-    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1400&q=80',
-    tag: 'Flagship Event',
-    badge: 'Nov 22–24',
-    title: 'TechFusion 36-Hour Hackathon 🚀',
-    desc: 'Build next-gen solutions across HealthTech, EdTech, and AI tracks. Network with Google & Microsoft engineers with ₹1.5L prizes.',
-    ctaText: 'Register for Hackathon',
+    image: photo('students'),
+    tag: 'MAKE ROOM FOR CAMPUS LIFE',
+    title: 'There’s more beyond class.',
+    desc: 'Find your people and discover the communities and activities around you.',
+    ctaText: 'Explore CampusConnect',
     ctaLink: '/events',
   },
   {
-    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1400&q=80',
-    tag: 'Knowledge Vault',
-    badge: 'NoteNest Hub',
-    title: 'Semester 5 Notes & PYQ Vault 📚',
-    desc: 'Access verified handwritten notes, previous exam papers, and formula cheat sheets curated by toppers and faculty mentors.',
-    ctaText: 'Browse NoteNest',
+    image: photo('library'),
+    tag: 'BETTER NOTES, TOGETHER',
+    title: 'Good notes travel further.',
+    desc: 'Find study resources and share what helps with the people learning alongside you.',
+    ctaText: 'Explore NoteNest',
     ctaLink: '/resources',
   },
 ]
 
 const CAMPUS_SPACES = [
   {
-    name: 'Central Library & Reading Pods',
-    category: 'Study Zone',
-    timing: '8:00 AM – 11:00 PM',
-    location: 'Central Campus Block',
-    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=800&q=80',
-    highlight: 'Over 120,000 physical volumes and 500 quiet study carrels.',
+    name: 'Library & study spaces',
+    category: 'Find your focus',
+    image: photo('library'),
+    highlight: 'A little quiet for the work that needs your attention.',
   },
   {
-    name: 'Advanced Computing & AI Labs',
-    category: 'Engineering',
-    timing: '9:00 AM – 6:00 PM',
-    location: 'CSE Block, 2nd Floor',
-    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
-    highlight: 'GPU workstation clusters and high-speed gigabit research network.',
+    name: 'Labs & learning',
+    category: 'Hands-on ideas',
+    image: photo('lab'),
+    highlight: 'Where curiosity turns into experiments and new skills.',
   },
   {
-    name: 'Innovation & Robotics Hub',
-    category: 'Makerspace',
-    timing: 'Open 24/7 for Projects',
-    location: 'Block A, Ground Floor',
-    image: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80',
-    highlight: '3D printers, soldering stations, and drone testing cages.',
+    name: 'People & projects',
+    category: 'Better together',
+    image: photo('students'),
+    highlight: 'Good ideas are even better when you share them.',
   },
   {
-    name: 'Open Air Theatre (OAT)',
-    category: 'Cultural Hub',
-    timing: '4:00 PM – 10:00 PM',
-    location: 'Beside SAC Block',
-    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80',
-    highlight: '2,500-capacity amphitheatre for fest performances and battle of bands.',
+    name: 'Events & culture',
+    category: 'Show up for it',
+    image: photo('event'),
+    highlight: 'The shared moments worth making time for.',
   },
   {
-    name: 'DTU Main Sports Complex',
-    category: 'Athletics',
-    timing: '6:00 AM – 8:00 PM',
-    location: 'East Campus Grounds',
-    image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80',
-    highlight: 'Floodlit cricket ground, FIFA-sized football turf, and synthetic tennis courts.',
+    name: 'Sports & movement',
+    category: 'Team spirit',
+    image: photo('sports'),
+    highlight: 'A change of pace and a chance to play together.',
   },
 ]
 
@@ -133,18 +115,27 @@ const formatEventDate = (dateStr) => {
 function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
   const [tasks, setTasks] = useState(MOCK_TASKS)
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0)
+  const [heroPaused, setHeroPaused] = useState(false)
+  const [heroHovered, setHeroHovered] = useState(false)
+  const [heroFocused, setHeroFocused] = useState(false)
   const [taskFilter, setTaskFilter] = useState('pending')
   const [calcClassesAttended, setCalcClassesAttended] = useState(34)
   const [calcTotalClasses, setCalcTotalClasses] = useState(40)
   const spaceScrollRef = useRef(null)
 
-  // Auto-advance hero carousel
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentHeroSlide((prev) => (prev + 1) % HERO_CAROUSEL_SLIDES.length)
-    }, 6000)
-    return () => clearInterval(timer)
-  }, [])
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let timer
+    const update = () => {
+      window.clearInterval(timer)
+      if (!media.matches && !heroPaused && !heroHovered && !heroFocused) {
+        timer = window.setInterval(() => setCurrentHeroSlide((prev) => (prev + 1) % HERO_CAROUSEL_SLIDES.length), 6500)
+      }
+    }
+    update()
+    media.addEventListener('change', update)
+    return () => { window.clearInterval(timer); media.removeEventListener('change', update) }
+  }, [heroPaused, heroHovered, heroFocused])
 
   const toggleTask = (id) => {
     setTasks((prev) =>
@@ -167,262 +158,83 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
 
   const nextSpace = () => {
     if (spaceScrollRef.current) {
-      spaceScrollRef.current.scrollBy({ left: 320, behavior: 'smooth' })
+      spaceScrollRef.current.scrollBy({ left: 320, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
     }
   }
 
   const prevSpace = () => {
     if (spaceScrollRef.current) {
-      spaceScrollRef.current.scrollBy({ left: -320, behavior: 'smooth' })
+      spaceScrollRef.current.scrollBy({ left: -320, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
     }
   }
 
   return (
     <div className="space-y-10 pb-16">
-      {/* ── 1. CAMPUS COMPASS TICKER TAPE ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-2.5 text-xs overflow-hidden shadow-2xs">
-        <div className="mx-auto flex max-w-7xl items-center px-4 sm:px-6">
-          <div className="mr-3 flex shrink-0 items-center gap-1.5 rounded-lg bg-[#AA2347] px-2.5 py-1 text-white font-bold shadow-xs">
-            <Lightbulb size={13} className="text-[#FFC72C]" />
-            <span className="uppercase tracking-wider text-[10px]">Senior Tips</span>
-          </div>
-          <div className="overflow-hidden whitespace-nowrap">
-            <div className="animate-ticker font-medium text-[var(--cm-muted)]">
-              {QUICK_TIPS.concat(QUICK_TIPS).map((tip, idx) => (
-                <span key={idx} className="inline-block px-8">
-                  {tip}
-                </span>
-              ))}
-            </div>
+      <div className="workspace-pulse" aria-label="Campus Pulse student tips">
+        <span className="workspace-pulse-label"><span /> CAMPUS PULSE</span>
+        <div className="workspace-pulse-window" tabIndex="0" aria-label="Student tips. Focus to pause scrolling.">
+          <div className="workspace-pulse-track">
+            {[0, 1].map((copy) => <div className="workspace-pulse-group" key={copy} aria-hidden={copy === 1}>{QUICK_TIPS.map((tip) => <span key={tip}>{tip}<b>✳</b></span>)}</div>)}
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl space-y-10 px-4 sm:px-6 lg:px-8">
-        {/* ── 2. LARGE VISUALLY IMPRESSIVE HERO SECTION (Campus Compass Island style) ── */}
-        <div className="relative overflow-hidden rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-md">
-          {/* Hero background image with gradient overlay */}
-          <div className="relative h-[480px] sm:h-[420px] lg:h-[460px] w-full overflow-hidden">
-            <img
-              src={slide.image}
-              alt={slide.title}
-              className="h-full w-full object-cover transition-transform duration-1000 scale-102"
-            />
-            {/* Rich gradient mask */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0C0E14] via-[#0C0E14]/80 to-[#0C0E14]/40" />
-
-            {/* Slide Content */}
-            <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-10 lg:p-12 text-white">
-              {/* Top Bar inside hero */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-3.5 py-1 text-xs font-semibold backdrop-blur-md">
-                  <span className="h-2 w-2 rounded-full bg-[#FFC72C] animate-pulse" />
-                  <span className="text-[#FFC72C]">{slide.tag}</span>
-                  <span className="text-white/60">·</span>
-                  <span>{slide.badge}</span>
-                </div>
-
-                <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs backdrop-blur-md text-white/80">
-                  <Compass size={14} className="text-[#FFC72C]" />
-                  <span>{MOCK_USER.college}</span>
+        <div className="workspace-welcome">
+          <section className="workspace-hero" aria-label="CampusMate highlights" aria-roledescription="carousel"
+            onMouseEnter={() => setHeroHovered(true)} onMouseLeave={() => setHeroHovered(false)}
+            onFocusCapture={() => setHeroFocused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHeroFocused(false) }}>
+            <div className="workspace-hero-images" aria-hidden="true">
+              {HERO_CAROUSEL_SLIDES.map((item, index) => <img key={item.image} src={item.image} alt="" width="1600" height="1067" loading={index === 0 ? 'eager' : 'lazy'} className={index === currentHeroSlide ? 'is-active' : ''} />)}
+            </div>
+            <div className="workspace-hero-shade" />
+            <div className="workspace-hero-content">
+              <div>
+                <p className="workspace-hero-kicker"><span /> {slide.tag}</p>
+                <h1>{slide.title}</h1>
+                <p className="workspace-hero-description">{slide.desc}</p>
+                <div className="workspace-hero-actions">
+                  <Link to={slide.ctaLink} className="workspace-hero-primary">{slide.ctaText} <ArrowRight size={16} /></Link>
+                  <Link to="/lost-found" state={{ openAdd: true }} className="workspace-hero-secondary">Report Lost Item <ArrowRight size={16} /></Link>
                 </div>
               </div>
-
-              {/* Main Titles */}
-              <div className="max-w-3xl space-y-3">
-                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-[#FFC72C]">
-                  Step into your university command centre
-                </p>
-                <h1 className="font-['Poppins'] text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight drop-shadow-md">
-                  {slide.title}
-                </h1>
-                <p className="text-xs sm:text-base text-white/85 leading-relaxed max-w-2xl font-normal drop-shadow-xs">
-                  {slide.desc}
-                </p>
-              </div>
-
-              {/* Bottom Actions & Controls */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-white/15">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Link
-                    to={slide.ctaLink}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-[#AA2347]/40 hover:brightness-110 transition cursor-pointer"
-                  >
-                    {slide.ctaText} <ArrowRight size={15} />
-                  </Link>
-                  <Link
-                    to="/lost-found"
-                    state={{ openAdd: true }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-                  >
-                    <Search size={14} /> Report Lost Item
-                  </Link>
+              <div className="workspace-hero-bottom">
+                <div className="workspace-hero-controls">
+                  <span>{String(currentHeroSlide + 1).padStart(2, '0')} / 03</span>
+                  {HERO_CAROUSEL_SLIDES.map((item, index) => <button type="button" key={item.image} className={`workspace-hero-dot ${index === currentHeroSlide ? 'is-active' : ''}`} aria-label={`Show highlight ${index + 1}`} aria-pressed={index === currentHeroSlide} onClick={() => { setCurrentHeroSlide(index); setHeroPaused(true) }} />)}
+                  <button type="button" className="workspace-hero-arrow" aria-label="Previous slide" onClick={() => { setCurrentHeroSlide((prev) => (prev - 1 + HERO_CAROUSEL_SLIDES.length) % HERO_CAROUSEL_SLIDES.length); setHeroPaused(true) }}><ChevronLeft size={17} /></button>
+                  <button type="button" className="workspace-hero-arrow" aria-label="Next slide" onClick={() => { setCurrentHeroSlide((prev) => (prev + 1) % HERO_CAROUSEL_SLIDES.length); setHeroPaused(true) }}><ChevronRight size={17} /></button>
+                  <button type="button" className="workspace-hero-play" aria-label={heroPaused ? 'Play slideshow' : 'Pause slideshow'} onClick={() => setHeroPaused(!heroPaused)}>{heroPaused ? <Play size={14} /> : <Pause size={14} />}</button>
                 </div>
-
-                {/* Carousel Controls */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() =>
-                      setCurrentHeroSlide(
-                        (prev) => (prev - 1 + HERO_CAROUSEL_SLIDES.length) % HERO_CAROUSEL_SLIDES.length
-                      )
-                    }
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-                    aria-label="Previous slide"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-
-                  <div className="flex gap-1.5 px-1">
-                    {HERO_CAROUSEL_SLIDES.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentHeroSlide(i)}
-                        aria-label={`Go to slide ${i + 1}`}
-                        className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                          i === currentHeroSlide ? 'w-6 bg-[#FFC72C]' : 'w-2 bg-white/40'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      setCurrentHeroSlide((prev) => (prev + 1) % HERO_CAROUSEL_SLIDES.length)
-                    }
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-                    aria-label="Next slide"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
+                <span className="workspace-hero-credit">ILLUSTRATIVE PHOTOGRAPHY · EXAMPLE DATA</span>
               </div>
             </div>
-          </div>
-
-          {/* Quick Metrics Banner below hero */}
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[var(--cm-border)] bg-[var(--cm-bg)]">
-            <div className="p-4 sm:p-5 flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#AA2347]/10 text-[#AA2347] dark:text-[#FFC72C]">
-                <Award size={22} />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Target CGPA</p>
-                <p className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">8.6 / 10</p>
-                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Class Top 10%</span>
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-                <CheckCircle2 size={22} />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Attendance</p>
-                <p className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">{attendanceRate}% Safe</p>
-                <span className="text-[10px] font-semibold text-[var(--cm-muted)]">≥ 75% required</span>
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600">
-                <Clock size={22} />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Sessions Today</p>
-                <p className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">{DAY_FLOW.length} Events</p>
-                <span className="text-[10px] font-semibold text-[var(--cm-muted)]">DBMS Lab active</span>
-              </div>
-            </div>
-
-            <div className="p-4 sm:p-5 flex items-center gap-3.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
-                <Sparkles size={22} />
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Tasks Done</p>
-                <p className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">{completedCount} of {tasks.length}</p>
-                <span className="text-[10px] font-semibold text-[#AA2347] dark:text-[#FFC72C]">{weeklyPercent}% complete</span>
-              </div>
-            </div>
+          </section>
+          <div className="workspace-overview" aria-label="Your day at a glance">
+            <div><span>YOUR TARGET CGPA</span><strong>8.6 <small>/ 10</small></strong><p>Example academic goal</p></div>
+            <div><span>ATTENDANCE</span><strong>{attendanceRate}%</strong><p>Based on your calculator</p></div>
+            <div><span>DAY FLOW</span><strong>{DAY_FLOW.length} <small>moments</small></strong><p>Explore your sample schedule</p></div>
+            <div><span>TASKS COMPLETED</span><strong>{completedCount} <small>/ {tasks.length}</small></strong><p>{weeklyPercent}% of your task list</p></div>
           </div>
         </div>
 
-        {/* ── 3. HORIZONTAL CAMPUS SPACES GALLERY (Campus Compass Inspired) ── */}
-        <section className="space-y-4">
-          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
-                <Layers size={14} /> Campus Tour & Facilities
-              </div>
-              <h2 className="font-['Poppins'] text-xl sm:text-2xl font-extrabold text-[var(--cm-text)]">
-                Explore the Spaces That Shape Your Learning 🏛️
-              </h2>
-              <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
-                Swipe through high-tech labs, research hubs, amphitheaters, and study carrels.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 self-end">
-              <button
-                onClick={prevSpace}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--cm-border)] bg-[var(--cm-surface)] text-[var(--cm-muted)] hover:border-[var(--cm-accent)] hover:text-[var(--cm-accent)] transition cursor-pointer shadow-xs"
-                aria-label="Previous campus space"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                onClick={nextSpace}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--cm-border)] bg-[var(--cm-surface)] text-[var(--cm-muted)] hover:border-[var(--cm-accent)] hover:text-[var(--cm-accent)] transition cursor-pointer shadow-xs"
-                aria-label="Next campus space"
-              >
-                <ChevronRight size={18} />
-              </button>
+        <section className="workspace-spaces">
+          <div className="workspace-section-heading">
+            <div><p className="workspace-section-kicker"><span /> THE WORLD AROUND YOU</p><h2>More than a place to study.</h2><p>For the places, people, and moments in between.</p></div>
+            <div className="workspace-space-controls">
+              <button type="button" onClick={prevSpace} aria-label="Previous campus space"><ChevronLeft size={18} /></button>
+              <button type="button" onClick={nextSpace} aria-label="Next campus space"><ChevronRight size={18} /></button>
             </div>
           </div>
-
-          {/* Horizontal Gallery Cards */}
-          <div
-            ref={spaceScrollRef}
-            className="flex gap-5 overflow-x-auto no-scrollbar pb-2 pt-1 scroll-smooth"
-          >
-            {CAMPUS_SPACES.map((space, idx) => (
-              <div
-                key={idx}
-                className="w-72 sm:w-80 shrink-0 overflow-hidden rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-xs hover:border-[var(--cm-accent)]/80 hover:shadow-md transition-all duration-300 group"
-              >
-                <div className="relative h-44 w-full overflow-hidden">
-                  <img
-                    src={space.image}
-                    alt={space.name}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute top-3 left-3">
-                    <span className="rounded-lg bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-                      {space.category}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <span className="block truncate text-xs font-medium text-white/90 drop-shadow-md">
-                      🕒 {space.timing}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-2">
-                  <h3 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)] line-clamp-1 group-hover:text-[var(--cm-accent)] transition">
-                    {space.name}
-                  </h3>
-                  <p className="flex items-center gap-1 text-xs text-[var(--cm-muted)]">
-                    <MapPin size={12} className="shrink-0 text-[#AA2347]" /> {space.location}
-                  </p>
-                  <p className="text-xs text-[var(--cm-muted)] line-clamp-2 leading-relaxed pt-1 border-t border-[var(--cm-border)]/60">
-                    {space.highlight}
-                  </p>
-                </div>
-              </div>
+          <div ref={spaceScrollRef} className="workspace-space-rail" aria-label="Illustrative campus life photographs">
+            {CAMPUS_SPACES.map((space) => (
+              <article className="workspace-space" key={space.name}>
+                <div><img src={space.image} alt="" width="1600" height="1067" loading="lazy" /><span>{space.category}</span></div>
+                <h3>{space.name}</h3><p>{space.highlight}</p>
+              </article>
             ))}
           </div>
+          <p className="workspace-spaces-note">ILLUSTRATIVE PHOTOGRAPHY · NOT A SPECIFIC CAMPUS</p>
         </section>
 
         {/* ── 4. TWO-COLUMN INTERACTIVE TIMELINE & ACADEMIC SPRINT ── */}
@@ -441,7 +253,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                 </div>
                 <Link
                   to="/planner"
-                  className="text-xs font-bold text-[#AA2347] dark:text-[#FFC72C] hover:underline"
+                  className="text-xs font-bold text-[var(--cm-accent)] hover:underline"
                 >
                   Full Weekly Timetable →
                 </Link>
@@ -455,7 +267,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                     <div
                       className={`absolute -left-6 top-1.5 flex h-4 w-4 items-center justify-center rounded-full border-2 transition ${
                         item.active
-                          ? 'border-[#AA2347] bg-[#FFC72C] ring-4 ring-[#AA2347]/20 scale-110'
+                          ? 'border-[var(--cm-accent)] bg-[var(--cm-accent)] ring-4 ring-[var(--cm-accent)]/20 scale-110'
                           : 'border-[var(--cm-border)] bg-[var(--cm-surface)] group-hover:border-[var(--cm-accent)]'
                       }`}
                     />
@@ -463,7 +275,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                     <div
                       className={`rounded-xl border p-3.5 transition ${
                         item.active
-                          ? 'border-[#AA2347] bg-[#AA2347]/5 dark:bg-[#AA2347]/15'
+                          ? 'border-[var(--cm-accent)] bg-[var(--cm-accent-tint)]'
                           : 'border-[var(--cm-border)]/60 bg-[var(--cm-bg)]/40 hover:bg-[var(--cm-secondary)]/30'
                       }`}
                     >
@@ -498,7 +310,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                         {item.title}
                       </h4>
                       <p className="mt-1 flex items-center gap-1 text-xs text-[var(--cm-muted)]">
-                        <MapPin size={12} className="shrink-0 text-[#AA2347]" />
+                        <MapPin size={12} className="shrink-0 text-[var(--cm-accent)]" />
                         {item.location}
                       </p>
                     </div>
@@ -524,7 +336,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                     onClick={() => setTaskFilter('pending')}
                     className={`rounded-lg px-3 py-1 font-semibold transition cursor-pointer ${
                       taskFilter === 'pending'
-                        ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                        ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                         : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
                     }`}
                   >
@@ -534,7 +346,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                     onClick={() => setTaskFilter('completed')}
                     className={`rounded-lg px-3 py-1 font-semibold transition cursor-pointer ${
                       taskFilter === 'completed'
-                        ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                        ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                         : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
                     }`}
                   >
@@ -547,11 +359,11 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
               <div className="mb-4 space-y-1.5">
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="text-[var(--cm-muted)]">Sprint Completion</span>
-                  <span className="text-[#AA2347] dark:text-[#FFC72C]">{weeklyPercent}% complete</span>
+                  <span className="text-[var(--cm-accent)]">{weeklyPercent}% complete</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cm-secondary)]">
                   <div
-                    className="h-full bg-gradient-to-r from-[#AA2347] to-[#D4345A] transition-all duration-500"
+                    className="h-full bg-[var(--cm-accent)] transition-all duration-500"
                     style={{ width: `${weeklyPercent}%` }}
                   />
                 </div>
@@ -567,7 +379,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                     <div className="flex items-center gap-3 min-w-0">
                       <button
                         onClick={() => toggleTask(task.id)}
-                        className="shrink-0 text-[var(--cm-muted)] hover:text-[#AA2347] cursor-pointer"
+                        className="shrink-0 text-[var(--cm-muted)] hover:text-[var(--cm-accent)] cursor-pointer"
                         aria-label="Toggle task status"
                       >
                         {task.status === 'completed' ? (
@@ -613,7 +425,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
               <div className="pt-3 border-t border-[var(--cm-border)]/60 text-right">
                 <Link
                   to="/planner"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#AA2347] dark:text-[#FFC72C] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--cm-accent)] hover:underline"
                 >
                   Manage all tasks in Planner <ArrowRight size={14} />
                 </Link>
@@ -636,7 +448,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                 </div>
                 <Link
                   to="/events"
-                  className="text-xs font-bold text-[#AA2347] dark:text-[#FFC72C] hover:underline"
+                  className="text-xs font-bold text-[var(--cm-accent)] hover:underline"
                 >
                   All Events →
                 </Link>
@@ -670,10 +482,10 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
 
                       <div className="min-w-0 flex-1 flex flex-col justify-between">
                         <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cm-accent)]">
                             {event.category}
                           </span>
-                          <h4 className="font-semibold text-xs text-[var(--cm-text)] group-hover:text-[#AA2347] transition line-clamp-1 mt-0.5">
+                          <h4 className="font-semibold text-xs text-[var(--cm-text)] group-hover:text-[var(--cm-accent)] transition line-clamp-1 mt-0.5">
                             {event.title}
                           </h4>
                           <p className="text-[11px] text-[var(--cm-muted)] line-clamp-1 mt-0.5">
@@ -703,7 +515,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                 </div>
                 <Link
                   to="/lost-found"
-                  className="text-xs font-bold text-[#AA2347] dark:text-[#FFC72C] hover:underline"
+                  className="text-xs font-bold text-[var(--cm-accent)] hover:underline"
                 >
                   Marketplace →
                 </Link>
@@ -732,7 +544,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                       </span>
                     </div>
                     <div className="mt-2 px-0.5">
-                      <p className="truncate text-xs font-bold text-[var(--cm-text)] group-hover:text-[#AA2347] transition">
+                      <p className="truncate text-xs font-bold text-[var(--cm-text)] group-hover:text-[var(--cm-accent)] transition">
                         {item.itemName}
                       </p>
                       <p className="truncate text-[10px] text-[var(--cm-muted)]">

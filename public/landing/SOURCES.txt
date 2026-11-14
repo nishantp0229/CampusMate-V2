@@ -1,0 +1,18 @@
+Illustrative photographs are from Unsplash and are not intended to depict a
+specific university or event. The locally stored copies were resized for the
+landing page. Unsplash license: https://unsplash.com/license
+
+architecture.jpg  https://images.unsplash.com/photo-1562774053-701939374585
+students.jpg      https://images.unsplash.com/photo-1523240795612-9a054b0db644
+studying.jpg      https://images.unsplash.com/photo-1522202176988-66273c2fd55f
+workshop.jpg      https://images.unsplash.com/photo-1531482615713-2afd69097998
+event.jpg         https://images.unsplash.com/photo-1492684223066-81342ee5ff30
+library.jpg       https://images.unsplash.com/photo-1521587760476-6c12a4b040da
+lab.jpg           https://images.unsplash.com/photo-1532094349884-543bc11b234d
+hangout.jpg       https://images.unsplash.com/photo-1528605248644-14dd04022da1
+sports.jpg        https://images.unsplash.com/photo-1574629810360-7efbbe195018
+culture.jpg       https://images.unsplash.com/photo-1514525253161-7a46d19cd819
+phone.jpg         https://images.unsplash.com/photo-1598327105666-5b89351aff97
+
+The module-*.jpg files are screenshots of this project's existing demo pages.
+They contain example data, not current student or event information.

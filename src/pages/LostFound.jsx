@@ -138,16 +138,13 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
   return (
     <div className="space-y-10 pb-16">
       {/* ── 1. CAMPUSFIND MARKETPLACE HERO ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+      <div className="workspace-page-header border-b border-[var(--cm-border)] bg-[var(--cm-surface)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
-                <Compass size={15} className="text-[#AA2347] dark:text-[#FFC72C]" />
-                <span>Peer-to-Peer Campus Recovery System</span>
-              </div>
+              <div className="workspace-page-kicker"><span /> CAMPUSFIND / DEMO DATA</div>
               <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
-                CampusFind: Lost & Found Marketplace 🔍
+                Good things find their way back.
               </h1>
               <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
                 Misplaced your headphones, bottle, or student ID card? Search community listings or report a found item to return it to fellow students.
@@ -159,14 +156,14 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
                 onClick={() => setShowActivity(!showActivity)}
                 className="relative inline-flex items-center gap-2 rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer"
               >
-                <Bell size={14} className="text-[#AA2347]" /> Activity ({notifications.length})
+                <Bell size={14} className="text-[var(--cm-accent)]" /> Activity ({notifications.length})
                 {notifications.length > 0 && (
-                  <span className="h-2 w-2 rounded-full bg-[#AA2347]" />
+                  <span className="h-2 w-2 rounded-full bg-[var(--cm-accent)]" />
                 )}
               </button>
               <button
                 onClick={() => setIsFormOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+                className="workspace-primary-button"
               >
                 <Plus size={16} /> Post an Item
               </button>
@@ -211,7 +208,7 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
                 onClick={() => setActiveTab(tab)}
                 className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
                   activeTab === tab
-                    ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                    ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                     : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
                 }`}
               >
@@ -295,7 +292,16 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
               return (
                 <div
                   key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View details for ${item.itemName}`}
                   onClick={() => setSelectedItem(item)}
+                  onKeyDown={(event) => {
+                    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault()
+                      setSelectedItem(item)
+                    }
+                  }}
                   className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-xs hover:border-[var(--cm-accent)]/80 hover:shadow-md transition-all duration-300 cursor-pointer"
                 >
                   {/* Photo area */}
@@ -313,7 +319,7 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
                           item.isResolved
                             ? 'bg-slate-700'
                             : item.type === 'lost'
-                            ? 'bg-[#AA2347]'
+                            ? 'bg-[#713c49]'
                             : 'bg-emerald-600'
                         }`}
                       >
@@ -325,11 +331,12 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
                     <button
                       onClick={(e) => toggleBookmark(item.id, e)}
                       className="absolute top-3 right-3 rounded-full bg-black/40 p-2 text-white hover:bg-black/60 shadow-md backdrop-blur-xs transition"
-                      aria-label="Save listing"
+                      aria-label={isSaved ? 'Remove saved listing' : 'Save listing'}
+                      aria-pressed={isSaved}
                     >
                       <Bookmark
                         size={15}
-                        className={isSaved ? 'fill-[#FFC72C] text-[#FFC72C]' : ''}
+                        className={isSaved ? 'fill-[#dce4b2] text-[#dce4b2]' : ''}
                       />
                     </button>
 
@@ -344,18 +351,18 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
                   {/* Info area */}
                   <div className="flex flex-1 flex-col justify-between p-4.5 space-y-2">
                     <div>
-                      <h3 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)] line-clamp-1 group-hover:text-[#AA2347] transition">
+                      <h3 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)] line-clamp-1 group-hover:text-[var(--cm-accent)] transition">
                         {item.itemName}
                       </h3>
                       <p className="mt-1 flex items-center gap-1 text-xs text-[var(--cm-muted)] line-clamp-1">
-                        <MapPin size={12} className="shrink-0 text-[#AA2347]" />
+                        <MapPin size={12} className="shrink-0 text-[var(--cm-accent)]" />
                         {item.location}
                       </p>
                     </div>
 
                     <div className="pt-2.5 border-t border-[var(--cm-border)]/60 flex items-center justify-between text-[11px] text-[var(--cm-muted)]">
                       <span>{formatDate(item.dateOccurred)}</span>
-                      <span className="font-bold text-[#AA2347] dark:text-[#FFC72C] group-hover:underline">
+                      <span className="font-bold text-[var(--cm-accent)] group-hover:underline">
                         Details →
                       </span>
                     </div>
@@ -389,7 +396,7 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
                   selectedItem.isResolved
                     ? 'bg-slate-700'
                     : selectedItem.type === 'lost'
-                    ? 'bg-[#AA2347]'
+                    ? 'bg-[#713c49]'
                     : 'bg-emerald-600'
                 }`}
               >
@@ -537,7 +544,7 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
             <label className={labelCls}>Item Photograph</label>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] cursor-pointer transition">
-                <Upload size={14} className="text-[#AA2347]" /> Upload Photograph
+                <Upload size={14} className="text-[var(--cm-accent)]" /> Upload Photograph
                 <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
               </label>
               {formData.imageUrl && (
@@ -569,7 +576,7 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               Post to Marketplace
             </button>

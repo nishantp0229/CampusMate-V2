@@ -2,7 +2,7 @@
 // Uses ReactDOM.createPortal so it renders outside the normal DOM tree,
 // avoiding z-index stacking issues.
 
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
@@ -14,6 +14,8 @@ import { X } from 'lucide-react'
  * @param {'sm'|'md'|'lg'} size - Width preset (default: 'md')
  */
 function Modal({ isOpen, onClose, title, children, size = 'md' }) {
+  const titleId = useId()
+  const dialogRef = useRef(null)
   // Prevent body from scrolling while modal is open
   useEffect(() => {
     if (isOpen) {
@@ -31,6 +33,25 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [isOpen, onClose])
 
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const previousFocus = document.activeElement
+    const frame = window.requestAnimationFrame(() => dialogRef.current?.querySelector('button, input, select, textarea, a[href]')?.focus())
+    return () => {
+      window.cancelAnimationFrame(frame)
+      previousFocus?.focus()
+    }
+  }, [isOpen])
+
+  const handleDialogKeyDown = (event) => {
+    if (event.key !== 'Tab') return
+    const controls = event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]')
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+  }
+
   if (!isOpen) return null
 
   const sizeClass = {
@@ -42,25 +63,27 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   return createPortal(
     // Backdrop overlay
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="workspace-modal-backdrop"
       onClick={onClose}
     >
       {/* Modal panel — stop click propagation so clicks inside don't close modal */}
       <div
-        className={`w-full ${sizeClass} bg-[var(--cm-card)] rounded-lg border border-[var(--cm-border)] flex flex-col max-h-[90vh]`}
+        ref={dialogRef}
+        className={`workspace-modal ${sizeClass}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--cm-border)] flex-shrink-0">
-          <h2
-            className="text-base font-semibold text-[var(--cm-text)]"
-            style={{ fontFamily: 'Poppins, sans-serif' }}
-          >
+        <div className="workspace-modal-heading">
+          <h2 id={titleId}>
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)] hover:text-[var(--cm-text)] transition-colors"
+            className="workspace-modal-close"
             aria-label="Close modal"
           >
             <X size={16} />
@@ -68,7 +91,7 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }) {
         </div>
 
         {/* Scrollable content area */}
-        <div className="overflow-y-auto flex-1 p-5">
+        <div className="workspace-modal-content">
           {children}
         </div>
       </div>
@@ -78,4 +101,3 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }) {
 }
 
 export default Modal
-

@@ -9,7 +9,6 @@ import {
   MapPin,
   Clock,
   Users,
-  Sparkles,
   CheckCircle,
 } from 'lucide-react'
 import Modal from '../components/ui/Modal'
@@ -163,16 +162,13 @@ function Events() {
   return (
     <div className="space-y-10 pb-16">
       {/* ── 1. CAMPUSCONNECT HERO HEADER (Campus Compass Clubs style) ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+      <div className="workspace-page-header border-b border-[var(--cm-border)] bg-[var(--cm-surface)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
-                <Sparkles size={15} className="text-[#FFC72C]" />
-                <span>Find Your Tribe & Build Real-World Skills</span>
-              </div>
+              <div className="workspace-page-kicker"><span /> CAMPUSCONNECT / DEMO DATA</div>
               <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
-                CampusConnect: Clubs, Fests & Hackathons 🎪
+                There’s a place for your thing.
               </h1>
               <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
                 Connect with flagship technical chapters, cultural councils, and athletic teams. Register for campus events with one tap.
@@ -181,7 +177,7 @@ function Events() {
 
             <button
               onClick={() => setIsAddOpen(true)}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               <Plus size={16} /> Submit College Event
             </button>
@@ -193,7 +189,7 @@ function Events() {
               <p className="text-xs font-bold uppercase tracking-wider text-[var(--cm-muted)]">
                 Flagship Student Societies & Teams:
               </p>
-              <span className="text-xs font-semibold text-[#AA2347] dark:text-[#FFC72C]">
+              <span className="text-xs font-semibold text-[var(--cm-accent)]">
                 Recruiting Freshers & Juniors
               </span>
             </div>
@@ -216,7 +212,7 @@ function Events() {
                       </span>
                     </div>
                     <div className="absolute top-2.5 right-2.5">
-                      <span className="rounded-md bg-[#AA2347] text-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-xs">
+                      <span className="rounded-md bg-[var(--cm-accent)] text-[var(--cm-accent-text)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-xs">
                         {club.badge}
                       </span>
                     </div>
@@ -224,7 +220,7 @@ function Events() {
 
                   <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)] group-hover:text-[#AA2347] transition">
+                      <h3 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)] group-hover:text-[var(--cm-accent)] transition">
                         {club.name}
                       </h3>
                       <p className="text-xs text-[var(--cm-muted)] line-clamp-2 leading-relaxed mt-1">
@@ -252,7 +248,7 @@ function Events() {
         {/* ── 2. "FROM CURIOUS FRESHER TO ACTIVE MEMBER" PATHWAY (Campus Compass) ── */}
         <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs">
           <div className="mb-6">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cm-accent)]">
               Senior Advice & Roadmaps
             </span>
             <h2 className="font-['Poppins'] text-xl sm:text-2xl font-extrabold text-[var(--cm-text)]">
@@ -269,7 +265,7 @@ function Events() {
                 key={index}
                 className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)]/60 p-4.5 space-y-2 relative"
               >
-                <span className="font-mono text-2xl font-extrabold text-[#AA2347]/40 dark:text-[#FFC72C]/40">
+                <span className="font-mono text-2xl font-extrabold text-[var(--cm-accent)]/50">
                   {item.step}
                 </span>
                 <h4 className="font-['Poppins'] text-sm font-bold text-[var(--cm-text)]">
@@ -293,7 +289,7 @@ function Events() {
                 onClick={() => setSelectedFilter(cat)}
                 className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
                   selectedFilter === cat
-                    ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                    ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                     : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
                 }`}
               >
@@ -344,7 +340,7 @@ function Events() {
 
                     {/* Date badge */}
                     <div className="absolute top-3.5 left-3.5 rounded-xl border border-white/20 bg-black/60 px-3 py-1.5 text-center shadow-lg backdrop-blur-md text-white">
-                      <span className="block text-[9px] font-extrabold uppercase text-[#FFC72C] leading-none">
+                      <span className="block text-[9px] font-extrabold uppercase text-[#dce4b2] leading-none">
                         {month}
                       </span>
                       <span className="block font-['Poppins'] text-lg font-black leading-tight">
@@ -353,7 +349,7 @@ function Events() {
                     </div>
 
                     <div className="absolute top-3.5 right-3.5">
-                      <span className="rounded-lg bg-[var(--cm-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
+                      <span className="rounded-lg bg-[var(--cm-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--cm-accent-text)] shadow-xs">
                         {group}
                       </span>
                     </div>
@@ -364,11 +360,11 @@ function Events() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-xs text-[var(--cm-muted)]">
                         <span className="flex items-center gap-1 font-mono">
-                          <Clock size={12} className="text-[#AA2347]" /> {formatTime(event.date)}
+                          <Clock size={12} className="text-[var(--cm-accent)]" /> {formatTime(event.date)}
                         </span>
                         <span>·</span>
                         <span className="flex items-center gap-1 truncate font-medium">
-                          <MapPin size={12} className="shrink-0 text-[#AA2347]" /> {event.location}
+                          <MapPin size={12} className="shrink-0 text-[var(--cm-accent)]" /> {event.location}
                         </span>
                       </div>
 
@@ -403,7 +399,7 @@ function Events() {
                           className={`rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs ${
                             isRsvp
                               ? 'bg-emerald-600 text-white'
-                              : 'bg-gradient-to-r from-[#AA2347] to-[#8A1B39] text-white hover:brightness-110'
+                              : 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] hover:opacity-90'
                           }`}
                         >
                           {isRsvp ? (
@@ -472,7 +468,7 @@ function Events() {
                 className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
                   registeredEvents.has(selectedEvent.id)
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-[var(--cm-accent)] text-white shadow-xs'
+                    : 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                 }`}
               >
                 {registeredEvents.has(selectedEvent.id) ? 'Registered ✓' : 'Register Now'}
@@ -567,7 +563,7 @@ function Events() {
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               Publish Event
             </button>

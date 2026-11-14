@@ -9,7 +9,6 @@ import {
   Calendar as CalendarIcon,
   Clock,
   MapPin,
-  GraduationCap,
   BookOpen,
 } from 'lucide-react'
 import Modal from '../components/ui/Modal'
@@ -119,16 +118,13 @@ function Planner() {
   return (
     <div className="space-y-10 pb-16">
       {/* ── 1. ACADEMIC HERO BANNER ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+      <div className="workspace-page-header border-b border-[var(--cm-border)] bg-[var(--cm-surface)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
-                <GraduationCap size={15} className="text-[#AA2347] dark:text-[#FFC72C]" />
-                <span>Semester 5 Academic Radar & Timetable</span>
-              </div>
+              <div className="workspace-page-kicker"><span /> ACADEMIC PLANNER / DEMO DATA</div>
               <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
-                Score Smart. Stay Consistent. 📚
+                Your academics, in order.
               </h1>
               <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
                 Everything you need to know about your coursework, weekly class flows, internal quizzes, and maintaining your target 8.5+ CGPA.
@@ -137,7 +133,7 @@ function Planner() {
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               <Plus size={16} /> Add Academic Task
             </button>
@@ -149,7 +145,7 @@ function Planner() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">
                 Target CGPA
               </span>
-              <p className="font-['Poppins'] text-2xl font-extrabold text-[#AA2347] dark:text-[#FFC72C] mt-1">
+              <p className="font-['Poppins'] text-2xl font-extrabold text-[var(--cm-accent)] mt-1">
                 8.6 / 10
               </p>
               <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -188,7 +184,7 @@ function Planner() {
               <p className="font-['Poppins'] text-2xl font-extrabold text-[var(--cm-text)] mt-1">
                 {weeklyPercent}%
               </p>
-              <span className="text-[10px] font-semibold text-[#AA2347] dark:text-[#FFC72C]">
+              <span className="text-[10px] font-semibold text-[var(--cm-accent)]">
                 {completedCount} tasks completed
               </span>
             </div>
@@ -201,7 +197,7 @@ function Planner() {
         <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs">
           <div className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--cm-accent)]">
                 <Clock size={13} /> Weekly Agenda
               </div>
               <h2 className="font-['Poppins'] text-xl sm:text-2xl font-extrabold text-[var(--cm-text)]">
@@ -213,7 +209,7 @@ function Planner() {
             </div>
 
             <span className="text-xs font-bold text-[var(--cm-muted)] flex items-center gap-1.5">
-              <CalendarIcon size={14} className="text-[#AA2347]" /> November 2026 Academic Term
+              <CalendarIcon size={14} className="text-[var(--cm-accent)]" /> November 2026 Academic Term
             </span>
           </div>
 
@@ -227,7 +223,7 @@ function Planner() {
                   onClick={() => setSelectedDay(item.day)}
                   className={`flex flex-col items-center justify-center rounded-2xl py-3 px-1 text-center transition cursor-pointer ${
                     isSelected
-                      ? 'bg-[var(--cm-accent)] text-white shadow-md font-bold'
+                      ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-md font-bold'
                       : 'border border-[var(--cm-border)]/70 bg-[var(--cm-bg)] text-[var(--cm-muted)] hover:border-[var(--cm-accent)]/60'
                   }`}
                 >
@@ -236,7 +232,7 @@ function Planner() {
                   {item.isToday && (
                     <span
                       className={`mt-1 text-[8px] font-bold uppercase px-1.5 py-0.2 rounded-full ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                        isSelected ? 'bg-[var(--cm-accent-text)]/10 text-[var(--cm-accent-text)]' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
                       }`}
                     >
                       Today
@@ -264,7 +260,7 @@ function Planner() {
                   >
                     <div className="flex items-center justify-between text-xs mb-2.5">
                       <span className="font-mono font-bold text-[var(--cm-text)] flex items-center gap-1.5">
-                        <Clock size={13} className="text-[#AA2347]" /> {session.time}
+                        <Clock size={13} className="text-[var(--cm-accent)]" /> {session.time}
                       </span>
                       <span
                         className={`rounded-lg px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
@@ -284,7 +280,7 @@ function Planner() {
                     </h4>
 
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--cm-muted)]">
-                      <MapPin size={13} className="shrink-0 text-[#AA2347]" />
+                      <MapPin size={13} className="shrink-0 text-[var(--cm-accent)]" />
                       {session.room}
                     </p>
                   </div>
@@ -319,7 +315,7 @@ function Planner() {
                   onClick={() => setFilter(tab.id)}
                   className={`rounded-lg px-3.5 py-1.5 font-bold transition cursor-pointer ${
                     filter === tab.id
-                      ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                      ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                       : 'text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
                   }`}
                 >
@@ -472,7 +468,7 @@ function Planner() {
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               Add to Schedule
             </button>

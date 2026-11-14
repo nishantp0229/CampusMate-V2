@@ -210,7 +210,7 @@ export const MOCK_EVENTS = [
 ];
 
 export const ITEM_CATEGORY_IMAGES = {
-  Electronics: 'https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=600&q=80',
+  Electronics: `${import.meta.env.BASE_URL}landing/phone.jpg`,
   Accessories: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=600&q=80',
   Documents: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80',
   Books: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
@@ -230,7 +230,7 @@ export const MOCK_LOST_FOUND = [
       'Black OnePlus Nord CE 3 with a cracked screen protector and a navy blue silicone case. Last seen near the library vending machines.',
     location: 'Central Library, Ground Floor',
     dateOccurred: '2026-11-05T13:30:00.000Z',
-    imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=600&q=80',
+    imageUrl: `${import.meta.env.BASE_URL}landing/phone.jpg`,
     contactInfo: '9876543210',
     contactName: 'Rahul Verma',
     isResolved: false,

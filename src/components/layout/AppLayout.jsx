@@ -2,34 +2,55 @@
 // Composes Sidebar + Topbar + <Outlet> (page content).
 // Manages mobile sidebar open/close state.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import '../../styles/workspace.css'
 
 function AppLayout({ lostFoundItems }) {
-  // Controls whether the mobile sidebar drawer is open
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+  const menuButtonRef = useRef(null)
+  const closeButtonRef = useRef(null)
+
+  const closeSidebar = () => {
+    setSidebarOpen(false)
+    if (isMobile) menuButtonRef.current?.focus()
+  }
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const update = () => {
+      setIsMobile(media.matches)
+      if (!media.matches) setSidebarOpen(false)
+    }
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    if (!sidebarOpen || !isMobile) return undefined
+    closeButtonRef.current?.focus()
+    const handleKey = (event) => {
+      if (event.key === 'Escape') {
+        setSidebarOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [sidebarOpen, isMobile])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--cm-bg)] text-[var(--cm-text)]">
-      {/* Fixed sidebar — static on desktop, overlay drawer on mobile */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* Mobile backdrop — dims the page behind the open drawer */}
+    <div className="workspace">
+      <Sidebar isOpen={sidebarOpen} isMobile={isMobile} onClose={closeSidebar} closeButtonRef={closeButtonRef} />
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-20 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
+        <button type="button" className="workspace-backdrop" onClick={closeSidebar} aria-label="Close navigation" />
       )}
-
-      {/* Main content column: topbar + scrollable page area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} lostFoundItems={lostFoundItems} />
-        <main className="flex-1 overflow-y-auto">
-          {/* Child route components render here */}
+      <div className="workspace-column">
+        <Topbar onMenuClick={() => setSidebarOpen(true)} menuOpen={sidebarOpen} menuButtonRef={menuButtonRef} lostFoundItems={lostFoundItems} />
+        <main className="workspace-main">
           <Outlet />
         </main>
       </div>

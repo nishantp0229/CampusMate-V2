@@ -17,21 +17,21 @@ export class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-[#FAF7F8] dark:bg-[#0D0F17] text-[#191B24] dark:text-[#ECEAF2] p-6 font-['Inter',sans-serif]">
-          <div className="max-w-md w-full rounded-3xl border border-[#E8D3DC] dark:border-[#2F3752] bg-white dark:bg-[#151825] p-8 text-center shadow-xl space-y-4">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#AA2347]/10 text-[#AA2347] dark:bg-[#D4345A]/20 dark:text-[#FFC72C] text-2xl font-bold">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--cm-bg)] text-[var(--cm-text)] p-6 font-['Inter',sans-serif]">
+          <div className="max-w-md w-full rounded-lg border border-[var(--cm-border)] bg-[var(--cm-card)] p-8 text-center shadow-xl space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--cm-accent-tint)] text-[var(--cm-accent)] text-2xl font-bold">
               ⚠️
             </div>
-            <h1 className="font-['Poppins'] text-2xl font-extrabold text-[#191B24] dark:text-[#ECEAF2]">
+            <h1 className="font-['Georgia'] text-3xl font-normal text-[var(--cm-text)]">
               Something went wrong
             </h1>
-            <p className="text-xs sm:text-sm text-[#666C82] dark:text-[#9BA3BF]">
+            <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
               {this.state.error?.message || 'An unexpected error occurred while loading this page.'}
             </p>
             <div className="pt-2 flex items-center justify-center gap-3">
               <button
                 onClick={() => window.location.reload()}
-                className="rounded-xl bg-[#AA2347] px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#8A1B39] transition cursor-pointer"
+                className="rounded bg-[var(--cm-accent)] px-4 py-2.5 text-xs font-bold text-[var(--cm-accent-text)] hover:opacity-90 transition cursor-pointer"
               >
                 Reload Page
               </button>
@@ -40,7 +40,7 @@ export class ErrorBoundary extends React.Component {
                   this.setState({ hasError: false, error: null })
                   window.location.href = '/'
                 }}
-                className="rounded-xl border border-[#E8D3DC] dark:border-[#2F3752] px-4 py-2.5 text-xs font-bold text-[#191B24] dark:text-[#ECEAF2] hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
+                className="rounded border border-[var(--cm-border)] px-4 py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer"
               >
                 Go to Landing
               </button>
@@ -55,4 +55,3 @@ export class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary
-

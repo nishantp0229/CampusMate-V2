@@ -1,901 +1,370 @@
-// src/pages/Landing.jsx — Immersive university platform landing page inspired by Campus Compass
-
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Compass,
-  CheckSquare,
-  CalendarDays,
-  Search,
-  BookOpen,
-  Moon,
-  Sun,
-  Menu,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  ArrowRight,
-  MapPin,
-  Sparkles,
-  Lightbulb,
-  Check,
-  GraduationCap,
-  Users,
-  Award,
-  Layers,
-} from 'lucide-react'
-import { useTheme } from '../App'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Compass, Menu, Pause, Play, X } from 'lucide-react'
+import './Landing.css'
 
-const TICKER_TIPS = [
-  'Welcome Class of 2026 to CampusMate! Your university journey begins here 🎓',
-  'Central Library 2nd floor silent reading carrels are open until 11:00 PM 📚',
-  'Attendance threshold reminder: Maintain ≥ 75% to stay eligible for end-semester exams ⚠️',
-  'TechFusion 36-Hour Hackathon registration is live with ₹1,50,000 in prizes 🚀',
-  'Report misplaced student ID cards or valuables on the CampusFind marketplace 🔍',
-  'Download verified Semester 5 handwritten notes from the NoteNest vault 📖',
+const image = (name) => `${import.meta.env.BASE_URL}landing/${name}.jpg`
+const number = (index) => String(index + 1).padStart(2, '0')
+const currentYear = new Date().getFullYear()
+
+const heroSlides = [
+  { image: 'architecture', label: 'A place to begin', detail: 'Campus architecture' },
+  { image: 'students', label: 'Better together', detail: 'Student life' },
+  { image: 'studying', label: 'Make space to learn', detail: 'Academics' },
+  { image: 'workshop', label: 'Find your people', detail: 'Clubs & collaboration' },
+  { image: 'event', label: 'Be part of the moment', detail: 'Events & culture' },
 ]
 
-const HERO_SLIDES = [
+const tips = [
+  'A little planning makes room for a lot more living.',
+  'Check your timetable before the day gets going.',
+  'Share the notes that helped you with someone else.',
+  'Make time for a club, a conversation, or a coffee.',
+  'Keep an eye on deadlines and event registrations.',
+]
+
+const modules = [
   {
-    image: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1600&q=80',
-    tag: 'Academic Quadrangle',
-    badge: 'Class of 2026 Guide',
-    title: 'Your University Life, Perfectly Orchestrated.',
-    desc: 'From 8:30 AM lectures to weekend hackathons, verified study notes and lost & found recovery — navigate university life with clarity.',
-    ctaPrimary: 'Get Started Free',
-    ctaSecondary: 'Explore Campus Tour ↓',
+    name: 'Dashboard', category: 'Your starting point', route: '/dashboard', image: 'module-dashboard',
+    title: 'A clearer view of your day.',
+    description: 'See the essentials at a glance, from your schedule and assignments to the things happening around campus.',
   },
   {
-    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1600&q=80',
-    tag: 'Innovation & Tech Hub',
-    badge: 'Flagship Chapters',
-    title: 'Find Your Tribe & Build Real-World Skills.',
-    desc: 'Join ACM, AI/ML Societies, Robotics makerspaces, and battle of bands. Discover events, connect with seniors, and build your resume.',
-    ctaPrimary: 'Discover Clubs & Events',
-    ctaSecondary: 'View Societies ↓',
+    name: 'Academic Planner', category: 'Make a little room', route: '/planner', image: 'module-planner',
+    title: 'A plan for the busy days.',
+    description: 'Keep your timetable and assignments together, so you can spend less time remembering and more time doing.',
   },
   {
-    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1600&q=80',
-    tag: 'Knowledge Vault',
-    badge: '8.5+ Target CGPA',
-    title: 'Protect Your CGPA & Master Your Coursework.',
-    desc: 'Access verified lecture slides, topper handwritten notes, previous exam question papers (PYQs), and interactive timetable alarms.',
-    ctaPrimary: 'Open Study Vault',
-    ctaSecondary: 'See Resources ↓',
+    name: 'CampusConnect', category: 'Find your people', route: '/events', image: 'module-events',
+    title: 'There’s more beyond class.',
+    description: 'Explore student communities, campus events, and the activities that make college feel like yours.',
   },
   {
-    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1600&q=80',
-    tag: 'Fest Season & Culture',
-    badge: 'AURORA 2026',
-    title: 'Experience Campus Life at Its Brightest.',
-    desc: 'Three days of music, theatre, celebrity concerts, inter-college sports championships, and campus memories that last a lifetime.',
-    ctaPrimary: 'Explore Campus Life',
-    ctaSecondary: 'Browse Highlights ↓',
+    name: 'CampusFind', category: 'Look out for each other', route: '/lost-found', image: 'module-lost-found',
+    title: 'Lost things find their way.',
+    description: 'Browse lost and found listings or share an item you’ve found with the campus community.',
+  },
+  {
+    name: 'NoteNest', category: 'Better notes, together', route: '/resources', image: 'module-resources',
+    title: 'Good notes travel further.',
+    description: 'Find study resources and share useful materials with the people learning alongside you.',
   },
 ]
 
-const CAMPUS_GALLERY = [
-  {
-    title: 'Central Computing & AI Labs',
-    category: 'Engineering & Research',
-    desc: 'Equipped with GPU workstation clusters and gigabit fiber research lines for deep learning and robotics projects.',
-    timing: '09:00 AM – 06:00 PM',
-    location: 'CSE Block, 2nd Floor',
-    image: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    title: 'Open Air Amphitheatre (OAT)',
-    category: 'Cultural Arena',
-    desc: 'A 2,500-capacity open arena hosting band wars, dance showcases, celebrity nights, and student gatherings.',
-    timing: 'Open Daily until 10:00 PM',
-    location: 'Adjacent to Student Activity Centre',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    title: 'Central Library & Reading Pods',
-    category: 'Silent Study Haven',
-    desc: '3 floors of quiet air-conditioned carrels, digital research terminals, and over 120,000 physical volumes.',
-    timing: '08:00 AM – 11:00 PM',
-    location: 'Central Academic Quad',
-    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    title: 'Main Sports Complex & Turf',
-    category: 'Athletics & Fitness',
-    desc: 'Floodlit cricket oval, FIFA-standard football pitch, synthetic tennis courts, and indoor badminton arenas.',
-    timing: '06:00 AM – 08:30 PM',
-    location: 'East Campus Grounds',
-    image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    title: 'Student Hub & Canteen Gardens',
-    category: 'Social & Dining',
-    desc: 'Vibrant indoor and open-air food courts serving breakfast, lunch resets, and evening chai between lectures.',
-    timing: '07:30 AM – 10:00 PM',
-    location: 'Hostel Triangle Plaza',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
-  },
+const spaces = [
+  { name: 'Library & study spaces', image: 'library', alt: 'Shelves of books in a library', caption: 'For the quiet moments of focus.' },
+  { name: 'Labs', image: 'lab', alt: 'Glassware on a laboratory table', caption: 'Where questions become experiments.' },
+  { name: 'Student hangouts', image: 'hangout', alt: 'People gathered around a table for a meal', caption: 'The conversations between everything else.' },
+  { name: 'Events', image: 'event', alt: 'A crowd enjoying a performance', caption: 'The moments worth showing up for.' },
+  { name: 'Sports', image: 'sports', alt: 'A football player on a grass field', caption: 'A little movement, a lot of team spirit.' },
+  { name: 'Campus architecture', image: 'architecture', alt: 'A university building across a green lawn', caption: 'A backdrop for everything that comes next.' },
 ]
 
-const MODULE_TABS = [
-  {
-    id: 'planner',
-    label: 'Academic Planner',
-    icon: CheckSquare,
-    badge: 'Academics',
-    title: 'Stay on Track with Timetables & 75% Safeguard',
-    desc: 'Schedule internal assignments, track lab report deadlines, and monitor your attendance standing with live warnings before exam debarment.',
-    stats: '8.6 Target CGPA · 4 Sessions Today · 85% Safe',
-    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80',
-    bullets: ['Interactive Monday–Sunday weekday timetable', 'Priority-tagged assignment sprint checklist', '75% mandatory attendance calculator meter'],
-  },
-  {
-    id: 'events',
-    label: 'CampusConnect',
-    icon: CalendarDays,
-    badge: 'Events & Fests',
-    title: 'Discover Fests, Hackathons & Club Recruits',
-    desc: 'Never miss an inter-college championship or coding bootcamp. Register with one tap, view live attendee counts, and follow society roadmaps.',
-    stats: '312 Going · ₹1.5L Prize Pool · 4 Flagship Clubs',
-    image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80',
-    bullets: ['Flagship society wonder cards & member counts', '4-Step Curious Fresher to Active Member pathway', 'High-res event discovery grid with RSVP confirmation'],
-  },
-  {
-    id: 'lostfound',
-    label: 'CampusFind',
-    icon: Search,
-    badge: 'Marketplace',
-    title: 'Peer-to-Peer Campus Lost & Found Recovery',
-    desc: 'Misplaced your earbuds in the lab or an ID card at the auditorium? Post photo listings, filter by campus area, and safely reunite items.',
-    stats: '14 Items Reunited · Real Photos · Verified Students',
-    image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=800&q=80',
-    bullets: ['Image-first photo cards with status ribbons', 'Campus location tags: Library, Canteen, Labs, Hostel', 'One-click "I Found This Item" & "Mark as Returned"'],
-  },
-  {
-    id: 'resources',
-    label: 'NoteNest Vault',
-    icon: BookOpen,
-    badge: 'Resource Vault',
-    title: 'Curated Study Materials by University Toppers',
-    desc: 'A structured vault of lecture slides, textbook PDF links, handwritten formulas, and previous year question papers categorized by semester.',
-    stats: 'Sem 1–8 · Peer-Reviewed · Direct Google Drive Access',
-    image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=800&q=80',
-    bullets: ['Semester pills and subject shortcuts (DBMS, DSA, OS)', 'Format filters: PDFs, Web Links, Video Tutorials', 'Verified exam revision notes and formula cheat sheets'],
-  },
+const activities = [
+  { category: '01 / COMMUNITY', title: 'Student clubs', text: 'Find the people who are into what you’re into.', image: 'students' },
+  { category: '02 / MAKE', title: 'Hackathons', text: 'Bring an idea, build something, learn together.', image: 'workshop' },
+  { category: '03 / CULTURE', title: 'Arts & culture', text: 'From the first rehearsal to the last encore.', image: 'culture' },
+  { category: '04 / TOGETHER', title: 'Campus events', text: 'Make the most of the moments outside class.', image: 'event' },
 ]
 
-const DO_ITEMS = [
-  'Carry your physical college ID card every single day for lab & library entry.',
-  'Verify your attendance percentages on ERP every Friday before 5:00 PM.',
-  'Download course lecture slides and syllabus notes before midterm evaluation week.',
-  'Join at least one flagship technical or cultural club during fresher orientation.',
-  'Keep hydrated and protect your room keys — reissuing duplicates takes days.',
+const day = [
+  { time: '8:30 AM', title: 'Check your timetable.', text: 'Start the morning knowing where you need to be.' },
+  { time: '11:00 AM', title: 'Review assignments.', text: 'Give the important things a little head start.' },
+  { time: '1:00 PM', title: 'Discover campus events.', text: 'Find something to look forward to after class.' },
+  { time: '4:00 PM', title: 'Explore clubs.', text: 'Make time for new ideas and new people.' },
+  { time: '7:00 PM', title: 'Find notes and prepare for tomorrow.', text: 'Wrap up today and make tomorrow feel lighter.' },
 ]
 
-const DONT_ITEMS = [
-  'Don’t skip breakfast or ignore hostel mess dinner timings (strict 7:30–9:30 PM).',
-  'Don’t let your attendance drop below 75% — debarment policies are strictly enforced.',
-  'Don’t wait until dead-week to ask professors for lab practical sign-offs.',
-  'Don’t leave laptops, earbuds or chargers unattended in library vending areas.',
-  'Don’t study alone in isolation — collaborate on group projects and seek senior advice.',
-]
+const signals = ['Plan assignments early.', 'Track attendance.', 'Join campus communities.', 'Share study resources.']
+const flags = ['Missing deadlines.', 'Ignoring attendance.', 'Losing notes.', 'Missing event registrations.']
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReduced(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  return reduced
+}
+
+function ArrowButton({ direction, label, onClick }) {
+  const Icon = direction === 'left' ? ArrowLeft : ArrowRight
+  return <button className="landing-arrow" type="button" aria-label={label} onClick={onClick}><Icon size={19} /></button>
+}
 
 function Landing() {
-  const { theme, toggleTheme } = useTheme()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [activeModuleIndex, setActiveModuleIndex] = useState(0)
-  const galleryScrollRef = useRef(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [playing, setPlaying] = useState(true)
+  const [heroHovered, setHeroHovered] = useState(false)
+  const [heroFocused, setHeroFocused] = useState(false)
+  const [moduleIndex, setModuleIndex] = useState(0)
+  const [spaceIndex, setSpaceIndex] = useState(0)
+  const [activeActivity, setActiveActivity] = useState(0)
+  const [focusedActivity, setFocusedActivity] = useState(null)
+  const [timelineVisible, setTimelineVisible] = useState(() => !('IntersectionObserver' in window))
+  const timelineRef = useRef(null)
+  const reducedMotion = useReducedMotion()
 
-  // Auto-advance hero carousel every 6 seconds
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)
-    }, 6000)
-    return () => clearInterval(timer)
+    const update = () => setScrolled(window.scrollY > 40)
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    return () => window.removeEventListener('scroll', update)
   }, [])
 
-  const nextHero = () => {
-    setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)
-  }
+  useEffect(() => {
+    if (!playing || reducedMotion || heroHovered || heroFocused) return undefined
+    const timer = window.setInterval(() => setHeroIndex((index) => (index + 1) % heroSlides.length), 6500)
+    return () => window.clearInterval(timer)
+  }, [playing, reducedMotion, heroHovered, heroFocused])
 
-  const prevHero = () => {
-    setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)
-  }
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const close = (event) => { if (event.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [menuOpen])
 
-  const scrollGallery = (direction) => {
-    if (galleryScrollRef.current) {
-      const offset = direction === 'left' ? -340 : 340
-      galleryScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' })
-    }
-  }
+  useEffect(() => {
+    if (!('IntersectionObserver' in window) || reducedMotion) return undefined
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setTimelineVisible(true)
+        observer.disconnect()
+      }
+    }, { threshold: 0.1 })
+    if (timelineRef.current) observer.observe(timelineRef.current)
+    return () => observer.disconnect()
+  }, [reducedMotion])
 
-  const slide = HERO_SLIDES[currentSlide]
-  const activeModule = MODULE_TABS[activeModuleIndex]
+  const moveHero = (step) => {
+    setHeroIndex((index) => (index + step + heroSlides.length) % heroSlides.length)
+    setPlaying(false)
+  }
+  const moveModule = (step) => setModuleIndex((index) => (index + step + modules.length) % modules.length)
+  const moveSpace = (step) => setSpaceIndex((index) => (index + step + spaces.length) % spaces.length)
+  const currentModule = modules[moduleIndex]
+  const currentSpace = spaces[spaceIndex]
+  const closeMenu = () => setMenuOpen(false)
 
   return (
-    <div className="min-h-screen bg-[var(--cm-bg)] text-[var(--cm-text)] selection:bg-[#AA2347] selection:text-white">
-      {/* ── 1. SENIOR TIPS TICKER TAPE (Campus Compass style) ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-2.5 text-xs overflow-hidden shadow-2xs">
-        <div className="mx-auto flex max-w-7xl items-center px-4 sm:px-6">
-          <div className="mr-3 flex shrink-0 items-center gap-1.5 rounded-lg bg-[#AA2347] px-2.5 py-1 text-white font-bold shadow-xs">
-            <Lightbulb size={13} className="text-[#FFC72C]" />
-            <span className="uppercase tracking-wider text-[10px]">Campus Pulse</span>
-          </div>
-          <div className="overflow-hidden whitespace-nowrap">
-            <div className="animate-ticker font-medium text-[var(--cm-muted)]">
-              {TICKER_TIPS.concat(TICKER_TIPS).map((tip, idx) => (
-                <span key={idx} className="inline-block px-8">
-                  {tip}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 2. STICKY COLLEGIATE NAVBAR ── */}
-      <nav className="sticky top-0 z-40 border-b border-[var(--cm-border)] bg-[var(--cm-surface)]/95 backdrop-blur-md">
-        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          {/* Brand Logo */}
-          <Link to="/" className="flex flex-shrink-0 items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#AA2347] to-[#78142F] text-white shadow-md shadow-[#AA2347]/20 group-hover:scale-105 transition">
-              <Compass size={22} className="text-[#FFC72C]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-['Poppins'] text-lg font-extrabold tracking-tight text-[var(--cm-text)]">
-                  CampusMate
-                </span>
-                <span className="rounded bg-[#FFC72C]/20 text-[#D99B00] dark:text-[#FFC72C] text-[9px] font-bold px-1.5 py-0.2 uppercase">
-                  Compass
-                </span>
-              </div>
-              <span className="block text-[11px] font-medium text-[var(--cm-muted)]">
-                University Student Hub
-              </span>
-            </div>
-          </Link>
-
-          {/* Desktop Nav Links */}
-          <div className="hidden items-center gap-7 text-xs sm:text-sm font-semibold text-[var(--cm-muted)] lg:flex">
-            <a href="#features" className="transition-colors hover:text-[var(--cm-accent)]">
-              Features
-            </a>
-            <a href="#campus-spaces" className="transition-colors hover:text-[var(--cm-accent)]">
-              Campus Spaces
-            </a>
-            <a href="#survival-kit" className="transition-colors hover:text-[var(--cm-accent)]">
-              Senior Survival Kit
-            </a>
-            <a href="#how-it-works" className="transition-colors hover:text-[var(--cm-accent)]">
-              How It Works
-            </a>
-          </div>
-
-          {/* Actions: Theme Toggle, Log In, Get Started */}
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={toggleTheme}
-              className="rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-2 text-[var(--cm-muted)] hover:text-[var(--cm-text)] transition cursor-pointer shadow-2xs"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun size={18} className="text-[#FFC72C]" /> : <Moon size={18} />}
-            </button>
-
-            <Link
-              to="/login"
-              className="hidden px-4 py-2 text-xs sm:text-sm font-bold text-[var(--cm-text)] hover:text-[#AA2347] transition sm:inline-flex"
-            >
-              Sign In
-            </Link>
-
-            <Link
-              to="/signup"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-4.5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
-            >
-              <span>Get Started</span>
-              <ArrowRight size={15} />
-            </Link>
-
-            <button
-              onClick={() => setMobileMenuOpen((o) => !o)}
-              className="rounded-xl border border-[var(--cm-border)] p-2 text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)] lg:hidden cursor-pointer"
-              aria-label="Menu"
-            >
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+    <div className="landing">
+      <a className="landing-skip" href="#main-content">Skip to content</a>
+      <header className={`landing-header ${scrolled ? 'is-scrolled' : ''} ${menuOpen ? 'menu-open' : ''}`}>
+        <div className="landing-nav-wrap">
+          <a href="#home" className="landing-brand" onClick={closeMenu} aria-label="CampusMate home">
+            <span className="landing-brand-mark"><Compass size={23} strokeWidth={1.7} /></span>
+            <span>CampusMate<small>MADE FOR CAMPUS LIFE</small></span>
+          </a>
+          <nav className="landing-desktop-nav" aria-label="Main navigation">
+            <a href="#home">Home</a>
+            <a href="#features">Features</a>
+            <a href="#campus-spaces">Campus Life</a>
+            <a href="#explore">Explore</a>
+          </nav>
+          <div className="landing-nav-actions">
+            <Link className="landing-signin" to="/login">Sign In</Link>
+            <Link className="landing-nav-cta" to="/signup">Get Started <ArrowUpRight size={16} /></Link>
+            <button className="landing-menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="landing-mobile-nav" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(!menuOpen)}>
+              {menuOpen ? <X size={23} /> : <Menu size={23} />}
             </button>
           </div>
         </div>
-
-        {/* Mobile dropdown */}
-        {mobileMenuOpen && (
-          <div className="space-y-2 border-t border-[var(--cm-border)] bg-[var(--cm-surface)] px-6 py-4 lg:hidden">
-            <a
-              href="#features"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-[var(--cm-text)]"
-            >
-              Features
-            </a>
-            <a
-              href="#campus-spaces"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-[var(--cm-text)]"
-            >
-              Campus Spaces
-            </a>
-            <a
-              href="#survival-kit"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-[var(--cm-text)]"
-            >
-              Senior Survival Kit
-            </a>
-            <a
-              href="#how-it-works"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-semibold text-[var(--cm-text)]"
-            >
-              How It Works
-            </a>
-            <div className="pt-2 border-t border-[var(--cm-border)]/60 flex items-center justify-between">
-              <Link
-                to="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-bold text-[#AA2347]"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/signup"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-xl bg-[#AA2347] px-4 py-2 text-xs font-bold text-white"
-              >
-                Create Account
-              </Link>
-            </div>
-          </div>
+        {menuOpen && (
+          <nav id="landing-mobile-nav" className="landing-mobile-nav" aria-label="Mobile navigation">
+            <a href="#home" onClick={closeMenu}>Home</a>
+            <a href="#features" onClick={closeMenu}>Features</a>
+            <a href="#campus-spaces" onClick={closeMenu}>Campus Life</a>
+            <a href="#explore" onClick={closeMenu}>Explore</a>
+            <div><Link to="/login" onClick={closeMenu}>Sign In</Link><Link to="/signup" onClick={closeMenu}>Get Started <ArrowUpRight size={16} /></Link></div>
+          </nav>
         )}
-      </nav>
+      </header>
 
-      {/* ── 3. HERO SECTION WITH LARGE IMAGE CAROUSEL ── */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-3xl sm:rounded-[36px] border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-2xl">
-            {/* Background Image Carousel with smooth zoom */}
-            <div className="relative h-[520px] sm:h-[500px] lg:h-[560px] w-full overflow-hidden">
-              <img
-                src={slide.image}
-                alt={slide.title}
-                className="h-full w-full object-cover transition-transform duration-1000 scale-102"
-              />
-              {/* Deep Collegiate gradient veil */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0C0E14] via-[#0C0E14]/75 to-[#0C0E14]/40" />
-
-              {/* Slide Overlay Content */}
-              <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-12 lg:p-16 text-white">
-                {/* Top Badge Strip */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-4 py-1 text-xs font-semibold backdrop-blur-md">
-                    <span className="h-2 w-2 rounded-full bg-[#FFC72C] animate-pulse" />
-                    <span className="text-[#FFC72C]">{slide.tag}</span>
-                    <span className="text-white/60">·</span>
-                    <span>{slide.badge}</span>
-                  </div>
-
-                  <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3.5 py-1 text-xs backdrop-blur-md text-white/80">
-                    <Compass size={14} className="text-[#FFC72C]" />
-                    <span>Amrita / DTU Student Guide</span>
-                  </div>
-                </div>
-
-                {/* Main Titles */}
-                <div className="max-w-3xl space-y-4">
-                  <span className="inline-block text-xs sm:text-sm font-extrabold uppercase tracking-widest text-[#FFC72C]">
-                    Your All-in-One University Companion
-                  </span>
-                  <h1 className="font-['Poppins'] text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight drop-shadow-md">
-                    {slide.title}
-                  </h1>
-                  <p className="text-sm sm:text-lg text-white/85 leading-relaxed max-w-2xl font-normal drop-shadow-xs">
-                    {slide.desc}
-                  </p>
-                </div>
-
-                {/* Bottom Action CTAs & Slider Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-white/20">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Link
-                      to="/signup"
-                      className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-xl shadow-[#AA2347]/40 hover:brightness-110 transition cursor-pointer"
-                    >
-                      {slide.ctaPrimary} <ArrowRight size={16} />
-                    </Link>
-                    <a
-                      href="#campus-spaces"
-                      className="inline-flex items-center gap-2 rounded-2xl border border-white/30 bg-white/10 px-5 py-3 text-xs sm:text-sm font-semibold text-white backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-                    >
-                      {slide.ctaSecondary}
-                    </a>
-                  </div>
-
-                  {/* Previous / Next Arrows & Indicators */}
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={prevHero}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-                      aria-label="Previous slide"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-
-                    <div className="flex gap-1.5 px-1">
-                      {HERO_SLIDES.map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setCurrentSlide(i)}
-                          aria-label={`Go to slide ${i + 1}`}
-                          className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
-                            i === currentSlide ? 'w-8 bg-[#FFC72C]' : 'w-2.5 bg-white/40'
-                          }`}
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={nextHero}
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md hover:bg-white/20 transition cursor-pointer"
-                      aria-label="Next slide"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* University Highlight Stats Ribbon */}
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[var(--cm-border)] bg-[var(--cm-bg)]">
-              <div className="p-5 flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#AA2347]/10 text-[#AA2347] dark:text-[#FFC72C]">
-                  <GraduationCap size={24} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Built for Students</p>
-                  <p className="font-['Poppins'] text-xl font-black text-[var(--cm-text)]">100% Free</p>
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Zero subscription fees</span>
-                </div>
-              </div>
-
-              <div className="p-5 flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
-                  <Award size={24} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Academic Radar</p>
-                  <p className="font-['Poppins'] text-xl font-black text-[var(--cm-text)]">8.5+ Target</p>
-                  <span className="text-[10px] font-semibold text-[var(--cm-muted)]">CGPA Protection Plan</span>
-                </div>
-              </div>
-
-              <div className="p-5 flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600">
-                  <CalendarDays size={24} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Campus Hubs</p>
-                  <p className="font-['Poppins'] text-xl font-black text-[var(--cm-text)]">4 Modules in 1</p>
-                  <span className="text-[10px] font-semibold text-[var(--cm-muted)]">Planner · Events · Lost · Notes</span>
-                </div>
-              </div>
-
-              <div className="p-5 flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
-                  <Users size={24} />
-                </div>
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">Community Reach</p>
-                  <p className="font-['Poppins'] text-xl font-black text-[var(--cm-text)]">14+ Reunited</p>
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Lost valuables restored</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 4. HORIZONTAL CAMPUS LIFE & FACILITIES GALLERY ── */}
-      <section id="campus-spaces" className="px-4 sm:px-6 lg:px-8 py-16 border-t border-[var(--cm-border)]/70">
-        <div className="mx-auto max-w-7xl space-y-6">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
-                <Layers size={14} /> University Environment
-              </div>
-              <h2 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold text-[var(--cm-text)] mt-1">
-                Explore the Spaces That Shape Your Learning 🏛️
-              </h2>
-              <p className="text-xs sm:text-base text-[var(--cm-muted)] mt-1 max-w-2xl">
-                Swipe through research laboratories, amphitheaters, sports arenas, and quiet study carrels across campus.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 self-end">
-              <button
-                onClick={() => scrollGallery('left')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--cm-border)] bg-[var(--cm-surface)] text-[var(--cm-muted)] hover:border-[#AA2347] hover:text-[#AA2347] transition cursor-pointer shadow-xs"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                onClick={() => scrollGallery('right')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--cm-border)] bg-[var(--cm-surface)] text-[var(--cm-muted)] hover:border-[#AA2347] hover:text-[#AA2347] transition cursor-pointer shadow-xs"
-                aria-label="Scroll right"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-
-          {/* Horizontal Image Gallery */}
-          <div
-            ref={galleryScrollRef}
-            className="flex gap-6 overflow-x-auto no-scrollbar pb-3 pt-1 scroll-smooth"
-          >
-            {CAMPUS_GALLERY.map((space, idx) => (
-              <div
-                key={idx}
-                className="w-80 sm:w-96 shrink-0 overflow-hidden rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-xs hover:border-[var(--cm-accent)]/80 hover:shadow-lg transition-all duration-300 group flex flex-col justify-between"
-              >
-                <div className="relative h-52 w-full overflow-hidden">
-                  <img
-                    src={space.image}
-                    alt={space.title}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute top-3.5 left-3.5">
-                    <span className="rounded-xl bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-                      {space.category}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3">
-                    <span className="block truncate text-xs font-semibold text-white/95 drop-shadow-md">
-                      🕒 {space.timing}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-5 sm:p-6 space-y-2 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)] group-hover:text-[#AA2347] transition line-clamp-1">
-                      {space.title}
-                    </h3>
-                    <p className="flex items-center gap-1.5 text-xs text-[var(--cm-muted)] mt-1">
-                      <MapPin size={13} className="shrink-0 text-[#AA2347]" /> {space.location}
-                    </p>
-                    <p className="text-xs text-[var(--cm-muted)] leading-relaxed mt-2 line-clamp-2">
-                      {space.desc}
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-[var(--cm-border)]/60 flex items-center justify-between text-xs font-bold text-[#AA2347] dark:text-[#FFC72C]">
-                    <span>Facility Open</span>
-                    <span className="group-hover:translate-x-1 transition-transform">Campus Guide →</span>
-                  </div>
-                </div>
-              </div>
+      <main id="main-content">
+        <section id="home" className="landing-hero" aria-label="Campus life slideshow" aria-roledescription="carousel"
+          onMouseEnter={() => setHeroHovered(true)} onMouseLeave={() => setHeroHovered(false)}
+          onFocusCapture={() => setHeroFocused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHeroFocused(false) }}>
+          <div className="landing-hero-images" aria-hidden="true">
+            {heroSlides.map((slide, index) => (
+              <img key={slide.image} className={index === heroIndex ? 'is-active' : ''} src={image(slide.image)} alt="" width="1600" height="1067" loading={index === 0 ? 'eager' : 'lazy'} fetchPriority={index === 0 ? 'high' : 'auto'} />
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── 5. INTERACTIVE FEATURE SHOWCASE WITH TABS ── */}
-      <section id="features" className="px-4 sm:px-6 lg:px-8 py-16 bg-[var(--cm-secondary)]/30 border-y border-[var(--cm-border)]/70">
-        <div className="mx-auto max-w-7xl space-y-8">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
-              Four Core Pillars
-            </span>
-            <h2 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold text-[var(--cm-text)]">
-              Everything You Need in One Unified Hub
-            </h2>
-            <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
-              Designed around how real university students manage classes, deadlines, fests, and lost items.
-            </p>
+          <div className="landing-hero-shade" />
+          <div className="landing-container landing-hero-content">
+            <div className="landing-hero-copy">
+              <p className="landing-eyebrow landing-eyebrow-light"><span /> YOUR COMPANION FOR COLLEGE LIFE</p>
+              <h1>Make Every<br />Campus Day <em>Count.</em></h1>
+              <p className="landing-hero-description">From your next assignment to your next campus adventure — everything you need, all in one place.</p>
+              <div className="landing-hero-buttons">
+                <a className="landing-button landing-button-light" href="#features">Explore CampusMate <ArrowDown size={17} /></a>
+                <Link className="landing-button landing-button-outline" to="/signup">Get Started <ArrowUpRight size={17} /></Link>
+              </div>
+            </div>
+            <div className="landing-hero-bottom">
+              <div className="landing-hero-controls">
+                <span className="landing-hero-count">{number(heroIndex)} <span>/ {number(heroSlides.length - 1)}</span></span>
+                <div className="landing-hero-dots" aria-label="Choose a slide">
+                  {heroSlides.map((slide, index) => <button key={slide.image} type="button" className={index === heroIndex ? 'is-active' : ''} aria-label={`Show slide ${index + 1}: ${slide.detail}`} aria-pressed={index === heroIndex} onClick={() => { setHeroIndex(index); setPlaying(false) }} />)}
+                </div>
+                <ArrowButton direction="left" label="Previous hero slide" onClick={() => moveHero(-1)} />
+                <ArrowButton direction="right" label="Next hero slide" onClick={() => moveHero(1)} />
+                {!reducedMotion && <button className="landing-play" type="button" aria-label={playing ? 'Pause slideshow' : 'Play slideshow'} onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>}
+              </div>
+              <div className="landing-hero-caption"><span>THE CAMPUS EXPERIENCE / {number(heroIndex)}</span><strong>{heroSlides[heroIndex].label}</strong><small>Illustrative photography · Unsplash</small></div>
+            </div>
           </div>
+        </section>
 
-          {/* Interactive Feature Tabs */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {MODULE_TABS.map((tab, idx) => {
-              const Icon = tab.icon
-              const isSelected = activeModuleIndex === idx
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveModuleIndex(idx)}
-                  className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs sm:text-sm font-bold transition cursor-pointer ${
-                    isSelected
-                      ? 'bg-[var(--cm-accent)] text-white shadow-md'
-                      : 'border border-[var(--cm-border)] bg-[var(--cm-surface)] text-[var(--cm-muted)] hover:text-[var(--cm-text)]'
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{tab.label}</span>
+        <div className="landing-ticker" aria-label="Campus Pulse student tips">
+          <span className="landing-ticker-label"><span /> CAMPUS PULSE</span>
+          <div className="landing-ticker-window" tabIndex="0" aria-label="Student tips. Focus to pause scrolling.">
+            <div className="landing-ticker-track">
+              {[0, 1].map((copy) => <div className="landing-ticker-group" key={copy} aria-hidden={copy === 1}>{tips.map((tip) => <span key={tip}>{tip}<b>✳</b></span>)}</div>)}
+            </div>
+          </div>
+        </div>
+
+        <section className="landing-intro landing-section">
+          <div className="landing-container">
+            <div className="landing-section-top"><p className="landing-eyebrow"><span /> A LITTLE LESS TO JUGGLE</p><span>01 / THE IDEA</span></div>
+            <div className="landing-intro-grid">
+              <h2>College Life Has<br /><em>Enough Chaos.</em></h2>
+              <div className="landing-intro-copy">
+                <span className="landing-intro-asterisk">✳</span>
+                <p>Your schedule, events, notes and campus essentials shouldn’t add to it.</p>
+                <p>CampusMate brings the everyday pieces together, leaving you more room for the moments that matter.</p>
+                <a className="landing-text-link" href="#features">GET TO KNOW CAMPUSMATE <ArrowRight size={17} /></a>
+              </div>
+            </div>
+            <div className="landing-intro-foot"><span>FOR THE CLASSES, THE COMMUNITIES & EVERYTHING IN BETWEEN.</span><span>MADE FOR YOUR EVERYDAY ↗</span></div>
+          </div>
+        </section>
+
+        <section id="features" className="landing-modules landing-section">
+          <div className="landing-container">
+            <div className="landing-section-top"><p className="landing-eyebrow landing-eyebrow-light"><span /> THE CAMPUSMATE COLLECTION</p><span>02 / EXPLORE THE TOOLS</span></div>
+            <div className="landing-heading-row">
+              <h2>One place for<br /><em>your kind of day.</em></h2>
+              <p>Five thoughtful spaces for the many moving parts of college life. Take a look around.</p>
+            </div>
+            <div className="landing-module-stage">
+              <div className="landing-module-image">
+                <div className="landing-preview-bar"><span><i /><i /><i /></span><span>CAMPUSMATE / {currentModule.name.toUpperCase()}</span><span>APP PREVIEW · DEMO DATA</span></div>
+                <img key={currentModule.image} src={image(currentModule.image)} alt={`${currentModule.name} application preview with sample data`} width="1280" height="800" />
+              </div>
+              <div className="landing-module-info">
+                <div className="landing-module-count"><strong>{number(moduleIndex)}</strong><span> / {number(modules.length - 1)}</span></div>
+                <p className="landing-kicker">{currentModule.category}</p>
+                <h3 key={currentModule.name}>{currentModule.title}</h3>
+                <p>{currentModule.description}</p>
+                <Link className="landing-text-link landing-text-link-light" to={currentModule.route}>EXPLORE {currentModule.name.toUpperCase()} <ArrowUpRight size={18} /></Link>
+                <div className="landing-module-arrows"><ArrowButton direction="left" label="Previous module" onClick={() => moveModule(-1)} /><ArrowButton direction="right" label="Next module" onClick={() => moveModule(1)} /></div>
+              </div>
+            </div>
+            <div className="landing-module-thumbs" aria-label="Choose a CampusMate module">
+              {modules.map((module, index) => (
+                <button key={module.name} type="button" className={index === moduleIndex ? 'is-active' : ''} aria-pressed={index === moduleIndex} onClick={() => setModuleIndex(index)}>
+                  <img src={image(module.image)} alt="" width="1280" height="800" loading="lazy" /><span><small>{number(index)}</small>{module.name}</span>
                 </button>
-              )
-            })}
+              ))}
+            </div>
+            <p className="landing-preview-note">A LOOK INSIDE THE APP · PREVIEWS SHOW EXAMPLE DATA</p>
           </div>
+        </section>
 
-          {/* Selected Feature Card Display */}
-          <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] overflow-hidden shadow-xl grid grid-cols-1 lg:grid-cols-12 items-center">
-            {/* Left Content */}
-            <div className="p-8 sm:p-12 lg:col-span-6 space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#AA2347]/10 text-[#AA2347] dark:text-[#FFC72C] px-3.5 py-1 text-xs font-bold uppercase tracking-wider">
-                <Sparkles size={14} /> {activeModule.badge}
+        <section id="campus-spaces" className="landing-campus landing-section">
+          <div className="landing-container">
+            <div className="landing-section-top"><p className="landing-eyebrow"><span /> THE WORLD AROUND YOU</p><span>03 / CAMPUS LIFE</span></div>
+            <div className="landing-heading-row landing-campus-heading">
+              <h2>More than a<br /><em>place to study.</em></h2>
+              <p>The places, people, and in-between moments are all part of the story. Here’s to making the most of them.</p>
+            </div>
+            <div className="landing-campus-stage">
+              <div className="landing-campus-photo">
+                <img key={currentSpace.image} src={image(currentSpace.image)} alt={currentSpace.alt} width="1600" height="1067" loading="lazy" />
+                <div className="landing-photo-caption"><span>THE SPACES IN BETWEEN / {number(spaceIndex)}</span><h3>{currentSpace.name}</h3><p>{currentSpace.caption}</p></div>
               </div>
-
-              <h3 className="font-['Poppins'] text-2xl sm:text-3xl font-extrabold text-[var(--cm-text)] leading-tight">
-                {activeModule.title}
-              </h3>
-
-              <p className="text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
-                {activeModule.desc}
-              </p>
-
-              {/* Bullet points */}
-              <div className="space-y-2.5 pt-2">
-                {activeModule.bullets.map((b, i) => (
-                  <div key={i} className="flex items-start gap-2.5 text-xs font-medium text-[var(--cm-text)]">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 mt-0.5">
-                      <Check size={12} />
-                    </div>
-                    <span>{b}</span>
-                  </div>
-                ))}
+              <div className="landing-campus-aside">
+                <span className="landing-large-number">{number(spaceIndex)}<small> / {number(spaces.length - 1)}</small></span>
+                <div><p className="landing-kicker">A LITTLE LOOK AROUND</p><h3>Life happens<br /><em>everywhere.</em></h3><p>From a quiet corner to a crowded room, every day has its own rhythm.</p></div>
+                <div className="landing-campus-arrows"><ArrowButton direction="left" label="Previous campus photo" onClick={() => moveSpace(-1)} /><ArrowButton direction="right" label="Next campus photo" onClick={() => moveSpace(1)} /></div>
               </div>
+            </div>
+            <div className="landing-space-thumbs" aria-label="Choose a campus life photograph">
+              {spaces.map((space, index) => <button key={space.name} type="button" className={index === spaceIndex ? 'is-active' : ''} aria-pressed={index === spaceIndex} onClick={() => setSpaceIndex(index)}><img src={image(space.image)} alt="" width="1600" height="1067" loading="lazy" /><span>{space.name}</span></button>)}
+            </div>
+            <p className="landing-image-note">IMAGERY IS ILLUSTRATIVE AND DOES NOT DEPICT A SPECIFIC CAMPUS.</p>
+          </div>
+        </section>
 
-              <div className="pt-4 flex items-center gap-4">
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md hover:brightness-110 transition"
-                >
-                  Try {activeModule.label} <ArrowRight size={15} />
+        <section id="explore" className="landing-connect landing-section">
+          <div className="landing-container">
+            <div className="landing-section-top"><p className="landing-eyebrow landing-eyebrow-light"><span /> CAMPUSCONNECT</p><span>04 / FIND YOUR PEOPLE</span></div>
+            <div className="landing-heading-row">
+              <h2>There’s a place<br /><em>for your thing.</em></h2>
+              <div><p>Good ideas, new friends, unexpected passions. It all starts with showing up.</p><Link className="landing-text-link landing-text-link-light" to="/events">EXPLORE EVENTS <ArrowUpRight size={18} /></Link></div>
+            </div>
+            <div className="landing-activities" aria-label="Explore campus activities">
+              {activities.map((activity, index) => (
+                <Link key={activity.title} to="/events" className={`landing-activity ${index === (focusedActivity ?? activeActivity) ? 'is-active' : ''}`} onMouseEnter={() => setActiveActivity(index)} onFocus={() => setFocusedActivity(index)} onBlur={() => setFocusedActivity(null)}>
+                  <img src={image(activity.image)} alt="" width="1600" height="1067" loading="lazy" />
+                  <span className="landing-activity-content"><small>{activity.category}</small><strong>{activity.title}</strong><span>{activity.text}</span></span>
+                  <span className="landing-activity-arrow"><ArrowUpRight size={19} /></span>
                 </Link>
-                <span className="text-xs font-bold text-[var(--cm-muted)] font-mono">
-                  {activeModule.stats}
-                </span>
-              </div>
+              ))}
             </div>
-
-            {/* Right Featured Image Mockup */}
-            <div className="relative h-64 sm:h-80 lg:h-full lg:col-span-6 overflow-hidden bg-[var(--cm-secondary)]">
-              <img
-                src={activeModule.image}
-                alt={activeModule.title}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-[var(--cm-surface)] via-transparent to-transparent" />
-            </div>
+            <div className="landing-connect-foot"><span>CURIOUS IS A GOOD PLACE TO START.</span><span>CLUBS / CULTURE / COMMUNITY</span></div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── 6. SENIOR SURVIVAL KIT: GREEN SIGNALS & RED FLAGS (Campus Compass staple) ── */}
-      <section id="survival-kit" className="px-4 sm:px-6 lg:px-8 py-16">
-        <div className="mx-auto max-w-7xl space-y-8">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
-              Fresher Survival Guide
-            </span>
-            <h2 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold text-[var(--cm-text)]">
-              Green Signals & Red Flags 🚦
-            </h2>
-            <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
-              Lessons seniors wish someone told them on day one — distilled into actionable rules.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Green Signals Column */}
-            <div className="rounded-3xl border border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b border-emerald-200 dark:border-emerald-800">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white font-black text-sm">
-                  DO
-                </div>
-                <div>
-                  <h3 className="font-['Poppins'] text-lg font-bold text-emerald-900 dark:text-emerald-200">
-                    Do This, Legend ✓
-                  </h3>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    Habits that protect your CGPA and mental peace
-                  </p>
-                </div>
+        <section id="how-it-works" className="landing-day landing-section">
+          <div className="landing-container">
+            <div className="landing-section-top"><p className="landing-eyebrow"><span /> A DAY WITH CAMPUSMATE</p><span>05 / THE DAILY RHYTHM</span></div>
+            <div className="landing-day-grid">
+              <div className="landing-day-story">
+                <h2>For the day<br /><em>in front of you.</em></h2>
+                <p>Every day looks a little different. Here’s one way CampusMate can come along for the ride.</p>
+                <div className="landing-day-photo"><img src={image('studying')} alt="Students studying together around a table" width="1600" height="1067" loading="lazy" /><span>THE LITTLE MOMENTS<br /><strong>make the whole story.</strong></span></div>
               </div>
-
-              <div className="space-y-3 pt-2">
-                {DO_ITEMS.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-emerald-950 dark:text-emerald-100">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold mt-0.5">
-                      ✓
-                    </span>
-                    <span className="leading-relaxed">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Red Flags Column */}
-            <div className="rounded-3xl border border-rose-300 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/20 p-6 sm:p-8 space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b border-rose-200 dark:border-rose-800">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#AA2347] text-white font-black text-sm">
-                  NO
-                </div>
-                <div>
-                  <h3 className="font-['Poppins'] text-lg font-bold text-rose-900 dark:text-rose-200">
-                    Don’t Do This, Boss ⚠️
-                  </h3>
-                  <p className="text-xs text-rose-700 dark:text-rose-400">
-                    Costly mistakes freshers make during their first semester
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                {DONT_ITEMS.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-rose-950 dark:text-rose-100">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#AA2347] text-white text-[10px] font-bold mt-0.5">
-                      ✕
-                    </span>
-                    <span className="leading-relaxed">{item}</span>
-                  </div>
-                ))}
+              <div ref={timelineRef} className={`landing-timeline ${timelineVisible ? 'is-visible' : ''}`}>
+                {day.map((item, index) => <div className="landing-timeline-row" key={item.time} style={{ '--step': index }}><span className="landing-time">{item.time}</span><span className="landing-timeline-dot" /><div><h3>{item.title}</h3><p>{item.text}</p></div></div>)}
+                <div className="landing-timeline-end">AND THEN, DO IT YOUR WAY AGAIN TOMORROW. ↗</div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── 7. HOW CAMPUSMATE WORKS IN 3 STEPS ── */}
-      <section id="how-it-works" className="px-4 sm:px-6 lg:px-8 py-16 bg-[var(--cm-secondary)]/30 border-t border-[var(--cm-border)]/70">
-        <div className="mx-auto max-w-5xl space-y-10">
-          <div className="text-center max-w-xl mx-auto space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#AA2347] dark:text-[#FFC72C]">
-              Simple & Intuitive
-            </span>
-            <h2 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold text-[var(--cm-text)]">
-              Up and Running in 3 Minutes
-            </h2>
-            <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
-              No complex manual setup — just enter your college email and get started.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 space-y-3 text-center">
-              <span className="font-mono text-3xl font-black text-[#AA2347]">01</span>
-              <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)]">
-                Create Your Account
-              </h3>
-              <p className="text-xs text-[var(--cm-muted)] leading-relaxed">
-                Sign up with your university email address. No credit card or verification delay needed.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 space-y-3 text-center">
-              <span className="font-mono text-3xl font-black text-[#AA2347]">02</span>
-              <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)]">
-                Track Timetable & Tasks
-              </h3>
-              <p className="text-xs text-[var(--cm-muted)] leading-relaxed">
-                Review your weekly lecture agenda, lab practicals, and monitor your 75% attendance safeguard meter.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 space-y-3 text-center">
-              <span className="font-mono text-3xl font-black text-[#AA2347]">03</span>
-              <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)]">
-                Connect with Campus
-              </h3>
-              <p className="text-xs text-[var(--cm-muted)] leading-relaxed">
-                Discover fests & hackathons, share handwritten notes on NoteNest, and report lost valuables.
-              </p>
+        <section id="survival-kit" className="landing-survival landing-section">
+          <div className="landing-container">
+            <div className="landing-section-top"><p className="landing-eyebrow"><span /> THE STUDENT SURVIVAL KIT</p><span>06 / A LITTLE HEADS-UP</span></div>
+            <div className="landing-heading-row"><h2>A little advice<br /><em>for the road.</em></h2><p>Small habits can make a big difference. Keep the good ones close and the other ones in check.</p></div>
+            <div className="landing-survival-grid">
+              <article className="landing-signal landing-signal-green"><div className="landing-signal-top"><span>THE GOOD HABITS</span><span>01 — 04</span></div><h3>Green<br /><em>Signals.</em></h3><p>A few things future-you will thank you for.</p><ul>{signals.map((item, index) => <li key={item}><span>{number(index)}</span>{item}<b>↗</b></li>)}</ul></article>
+              <article className="landing-signal landing-signal-red"><div className="landing-signal-top"><span>THINGS TO WATCH</span><span>01 — 04</span></div><h3>Red<br /><em>Flags.</em></h3><p>The little things that can sneak up on you.</p><ul>{flags.map((item, index) => <li key={item}><span>{number(index)}</span>{item}<b>↗</b></li>)}</ul></article>
             </div>
           </div>
+        </section>
 
-          {/* CTA Banner */}
-          <div className="rounded-3xl bg-gradient-to-r from-[#AA2347] via-[#8A1B39] to-[#5A1128] p-8 sm:p-12 text-center text-white space-y-5 shadow-2xl">
-            <h3 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold leading-tight">
-              Ready to Master Your Semester?
-            </h3>
-            <p className="text-xs sm:text-base text-white/85 max-w-xl mx-auto leading-relaxed">
-              Join students who navigate university life, coursework, and events effortlessly with CampusMate.
-            </p>
-            <div className="pt-2">
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 rounded-2xl bg-white text-[#AA2347] font-extrabold px-8 py-3.5 text-xs sm:text-sm uppercase tracking-wider shadow-lg hover:bg-white/95 transition cursor-pointer"
-              >
-                <span>Get Started Now</span>
-                <ArrowRight size={16} />
-              </Link>
-            </div>
+        <section className="landing-final">
+          <div className="landing-final-image"><img src={image('architecture')} alt="" width="1600" height="1067" loading="lazy" /></div>
+          <div className="landing-container landing-final-content"><p className="landing-eyebrow landing-eyebrow-light"><span /> YOUR NEXT CHAPTER AWAITS</p><h2>Your Campus Story<br /><em>Starts Here.</em></h2><p>There’s a lot ahead. Let’s make a little more of every day.</p><div><Link className="landing-button landing-button-light" to="/signup">Get Started <ArrowUpRight size={17} /></Link><a className="landing-button landing-button-outline" href="#features">Explore Features <ArrowRight size={17} /></a></div></div>
+        </section>
+      </main>
+
+      <footer className="landing-footer">
+        <div className="landing-container">
+          <div className="landing-footer-grid">
+            <div className="landing-footer-brand"><a href="#home" className="landing-brand"><span className="landing-brand-mark"><Compass size={23} strokeWidth={1.7} /></span><span>CampusMate<small>MADE FOR CAMPUS LIFE</small></span></a><p>A little more organised.<br />A lot more campus life.</p></div>
+            <div><h3>EXPLORE</h3><a href="#features">Features</a><a href="#campus-spaces">Campus Life</a><a href="#explore">CampusConnect</a><a href="#survival-kit">Survival Kit</a></div>
+            <div><h3>THE MODULES</h3><Link to="/dashboard">Dashboard</Link><Link to="/planner">Academic Planner</Link><Link to="/events">CampusConnect</Link><Link to="/lost-found">CampusFind</Link><Link to="/resources">NoteNest</Link></div>
+            <div><h3>THE PROJECT</h3><Link to="/login">Sign In</Link><Link to="/signup">Get Started</Link><a href="https://github.com/nishantp0229/CampusMate-V2" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={14} /></a><a href="https://unsplash.com/" target="_blank" rel="noreferrer">Illustrative photos: Unsplash <ArrowUpRight size={14} /></a></div>
           </div>
-        </div>
-      </section>
-
-      {/* ── 8. UNIVERSITY COMPREHENSIVE FOOTER ── */}
-      <footer className="border-t border-[var(--cm-border)] bg-[var(--cm-surface)] px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mx-auto max-w-7xl space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
-            {/* Col 1 & 2: Brand */}
-            <div className="lg:col-span-2 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#AA2347] to-[#78142F] text-white shadow-md">
-                  <Compass size={20} className="text-[#FFC72C]" />
-                </div>
-                <span className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">
-                  CampusMate
-                </span>
-              </div>
-              <p className="text-xs text-[var(--cm-muted)] leading-relaxed max-w-sm">
-                The ultimate university student compass — bringing timetables, attendance tracking, verified notes, campus fests, and lost & found recovery into one clean platform.
-              </p>
-              <p className="text-[11px] text-[var(--cm-muted)] font-mono">
-                Amrita & DTU Edition · Class of 2026
-              </p>
-            </div>
-
-            {/* Col 3: Modules */}
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--cm-text)]">
-                Modules
-              </p>
-              <ul className="space-y-1.5 text-xs text-[var(--cm-muted)]">
-                <li><Link to="/planner" className="hover:text-[#AA2347]">Academic Planner</Link></li>
-                <li><Link to="/events" className="hover:text-[#AA2347]">CampusConnect</Link></li>
-                <li><Link to="/lost-found" className="hover:text-[#AA2347]">CampusFind</Link></li>
-                <li><Link to="/resources" className="hover:text-[#AA2347]">NoteNest Vault</Link></li>
-              </ul>
-            </div>
-
-            {/* Col 4: Guide */}
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--cm-text)]">
-                Fresher Guide
-              </p>
-              <ul className="space-y-1.5 text-xs text-[var(--cm-muted)]">
-                <li><a href="#survival-kit" className="hover:text-[#AA2347]">Senior Tips</a></li>
-                <li><a href="#campus-spaces" className="hover:text-[#AA2347]">Campus Spaces</a></li>
-                <li><a href="#how-it-works" className="hover:text-[#AA2347]">How It Works</a></li>
-                <li><a href="#features" className="hover:text-[#AA2347]">Features</a></li>
-              </ul>
-            </div>
-
-            {/* Col 5: Access */}
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--cm-text)]">
-                Student Access
-              </p>
-              <ul className="space-y-1.5 text-xs text-[var(--cm-muted)]">
-                <li><Link to="/login" className="hover:text-[#AA2347]">Sign In</Link></li>
-                <li><Link to="/signup" className="hover:text-[#AA2347]">Create Account</Link></li>
-                <li><Link to="/profile" className="hover:text-[#AA2347]">Student Passport</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-[var(--cm-border)]/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--cm-muted)]">
-            <p>© 2026 CampusMate. Built by students, for students. All rights reserved.</p>
-            <div className="flex gap-4">
-              <Link to="/login" className="hover:text-[var(--cm-text)]">Sign In</Link>
-              <span>·</span>
-              <Link to="/signup" className="hover:text-[var(--cm-text)]">Register</Link>
-              <span>·</span>
-              <Link to="/dashboard" className="hover:text-[var(--cm-text)]">Dashboard</Link>
-            </div>
-          </div>
+          <div className="landing-footer-bottom"><span>© {currentYear} CAMPUSMATE. BUILT FOR STUDENT LIFE.</span><a href="#home">BACK TO THE TOP ↑</a></div>
         </div>
       </footer>
     </div>

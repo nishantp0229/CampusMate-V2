@@ -101,7 +101,7 @@ function Resources() {
   const getFormatIcon = (type) => {
     switch (type) {
       case 'pdf':
-        return <FileText size={20} className="text-[#AA2347]" />
+        return <FileText size={20} className="text-[var(--cm-accent)]" />
       case 'video':
         return <Video size={20} className="text-sky-500" />
       case 'link':
@@ -114,16 +114,13 @@ function Resources() {
   return (
     <div className="space-y-10 pb-16">
       {/* ── 1. NOTENEST HERO HEADER (Campus Compass Vault style) ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+      <div className="workspace-page-header border-b border-[var(--cm-border)] bg-[var(--cm-surface)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
-                <BookOpen size={15} className="text-[#AA2347] dark:text-[#FFC72C]" />
-                <span>Academic Vault & Curated Study Materials</span>
-              </div>
+              <div className="workspace-page-kicker"><span /> NOTENEST / DEMO DATA</div>
               <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
-                NoteNest: Academic Resource Vault 📖
+                Good notes travel further.
               </h1>
               <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
                 Handwritten notes, textbook PDF drive links, previous year question papers (PYQs), and cheat sheets curated by university toppers.
@@ -132,7 +129,7 @@ function Resources() {
 
             <button
               onClick={() => setIsAddOpen(true)}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               <Plus size={16} /> Upload Notes / Drive Link
             </button>
@@ -150,7 +147,7 @@ function Resources() {
                   onClick={() => setSelectedSem(sem)}
                   className={`rounded-xl px-4 py-1.5 text-xs font-bold transition cursor-pointer ${
                     selectedSem === sem
-                      ? 'bg-[var(--cm-accent)] text-white shadow-xs'
+                      ? 'bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-xs'
                       : 'border border-[var(--cm-border)] bg-[var(--cm-bg)] text-[var(--cm-muted)] hover:border-[var(--cm-accent)]/60'
                   }`}
                 >
@@ -232,7 +229,7 @@ function Resources() {
                       {getFormatIcon(res.resourceType)}
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-lg bg-[#AA2347]/10 text-[#AA2347] dark:text-[#FFC72C] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                      <span className="rounded-lg bg-[var(--cm-accent-tint)] text-[var(--cm-accent)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                         Sem {res.semester}
                       </span>
                       <span className="rounded-lg bg-[var(--cm-secondary)] px-2.5 py-0.5 text-[10px] font-bold text-[var(--cm-muted)] uppercase tracking-wider">
@@ -242,7 +239,7 @@ function Resources() {
                   </div>
 
                   <div>
-                    <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)] group-hover:text-[#AA2347] transition line-clamp-1">
+                    <h3 className="font-['Poppins'] text-base font-bold text-[var(--cm-text)] group-hover:text-[var(--cm-accent)] transition line-clamp-1">
                       {res.title}
                     </h3>
                     <p className="mt-0.5 text-xs font-bold text-[var(--cm-muted)]">
@@ -277,7 +274,7 @@ function Resources() {
                     href={res.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--cm-secondary)] px-3.5 py-2 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-accent)] hover:text-white transition shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--cm-secondary)] px-3.5 py-2 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-accent)] hover:text-[var(--cm-accent-text)] transition shadow-2xs"
                   >
                     Open Link <ExternalLink size={13} />
                   </a>
@@ -390,7 +387,7 @@ function Resources() {
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+              className="workspace-primary-button"
             >
               Share Notes
             </button>

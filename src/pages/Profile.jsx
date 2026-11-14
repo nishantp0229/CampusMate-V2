@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import {
-  Shield,
   Moon,
   Sun,
   Edit3,
@@ -50,16 +49,13 @@ function Profile() {
   return (
     <div className="space-y-10 pb-16">
       {/* ── 1. PROFILE HERO HEADER ── */}
-      <div className="border-b border-[var(--cm-border)] bg-[var(--cm-surface)] py-8 shadow-2xs">
+      <div className="workspace-page-header border-b border-[var(--cm-border)] bg-[var(--cm-surface)]">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-1 text-xs font-semibold text-[var(--cm-muted)]">
-                <Shield size={14} className="text-emerald-500" />
-                <span>Verified University Student Passport</span>
-              </div>
+              <div className="workspace-page-kicker"><span /> STUDENT PROFILE / DEMO DATA</div>
               <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
-                Student Passport & Profile 🎓
+                A little about you.
               </h1>
               <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
                 Manage your collegiate credentials, academic standing, and application settings.
@@ -79,7 +75,7 @@ function Profile() {
               }}
               className="inline-flex items-center gap-2 self-start sm:self-auto rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer shadow-xs"
             >
-              <Edit3 size={15} className="text-[#AA2347]" /> {editing ? 'Cancel Editing' : 'Edit Credentials'}
+              <Edit3 size={15} className="text-[var(--cm-accent)]" /> {editing ? 'Cancel Editing' : 'Edit Credentials'}
             </button>
           </div>
         </div>
@@ -95,14 +91,14 @@ function Profile() {
         {/* ── 2. UNIVERSITY DIGITAL ID CARD / STUDENT PASSPORT ── */}
         <div className="overflow-hidden rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-md">
           {/* Card Top Strip */}
-          <div className="border-b border-[var(--cm-border)] bg-gradient-to-r from-[#AA2347]/10 via-[#AA2347]/5 to-transparent p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="border-b border-[var(--cm-border)] bg-[var(--cm-accent-tint)] p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#AA2347] to-[#78142F] text-white shadow-md">
-                <Compass size={22} className="text-[#FFC72C]" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--cm-accent)] text-[var(--cm-accent-text)] shadow-md">
+                <Compass size={22} />
               </div>
               <div>
-                <span className="block text-[10px] font-extrabold uppercase tracking-widest text-[#AA2347] dark:text-[#FFC72C]">
-                  Official University Passport
+                <span className="block text-[10px] font-extrabold uppercase tracking-widest text-[var(--cm-accent)]">
+                  Student Passport · Example Data
                 </span>
                 <span className="block font-['Poppins'] text-base font-extrabold text-[var(--cm-text)]">
                   {user.college}
@@ -111,14 +107,14 @@ function Profile() {
             </div>
 
             <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-3.5 py-1 text-xs font-extrabold">
-              Active Enrolled · Fall 2026
+              Sample profile · Semester {user.semester}
             </span>
           </div>
 
           <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
             {/* Avatar & Initials */}
             <div className="flex flex-col items-center justify-center text-center md:col-span-4 border-b md:border-b-0 md:border-r border-[var(--cm-border)]/60 pb-6 md:pb-0 md:pr-8">
-              <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-gradient-to-br from-[#AA2347] to-[#8A1B39] text-3xl font-extrabold text-white shadow-lg shadow-[#AA2347]/30">
+              <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl bg-[var(--cm-accent)] text-3xl font-extrabold text-[var(--cm-accent-text)] shadow-lg">
                 {user.avatarInitials}
                 <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-[var(--cm-surface)]" />
               </div>
@@ -156,7 +152,7 @@ function Profile() {
                 </div>
                 <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Society Role</span>
-                  <p className="mt-1 font-bold text-xs text-[#AA2347] dark:text-[#FFC72C]">ACM Student Lead</p>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-accent)]">ACM Student Lead</p>
                 </div>
               </div>
             </div>
@@ -237,7 +233,7 @@ function Profile() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-gradient-to-r from-[#AA2347] to-[#8A1B39] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#AA2347]/20 hover:brightness-110 transition cursor-pointer"
+                  className="workspace-primary-button"
                 >
                   Save Credentials
                 </button>
@@ -257,14 +253,14 @@ function Profile() {
             <div className="py-4 flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-[var(--cm-text)]">Collegiate Theme Mode</p>
-                <p className="text-[11px] text-[var(--cm-muted)]">Switch between Daylight Ivory and Midnight Obsidian themes</p>
+                <p className="text-[11px] text-[var(--cm-muted)]">Switch between warm daylight and forest night themes</p>
               </div>
               <button
                 onClick={toggleTheme}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer shadow-2xs"
               >
-                {theme === 'dark' ? <Sun size={15} className="text-[#FFC72C]" /> : <Moon size={15} />}
-                {theme === 'dark' ? 'Obsidian Dark' : 'Daylight Ivory'}
+                {theme === 'dark' ? <Sun size={15} className="text-[var(--cm-accent)]" /> : <Moon size={15} />}
+                {theme === 'dark' ? 'Forest Night' : 'Warm Daylight'}
               </button>
             </div>
 

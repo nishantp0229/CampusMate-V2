@@ -5,39 +5,39 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── Campus Compass Inspired Collegiate Colour Identity ───── */
+/* ─── CampusMate workspace palette ────────────────────────── */
 :root {
-  --cm-bg: #FAF7F8;
-  --cm-surface: #FFFFFF;
-  --cm-card: #FFFFFF;
-  --cm-secondary: #F4EAEF;
-  --cm-border: #E8D3DC;
-  --cm-text: #191B24;
-  --cm-muted: #666C82;
-  --cm-accent: #AA2347;
-  --cm-accent-dark: #8A1B39;
-  --cm-accent-light: #D4345A;
-  --cm-accent-tint: #FDF0F3;
+  --cm-bg: #F5F3EB;
+  --cm-surface: #FBFAF5;
+  --cm-card: #FBFAF5;
+  --cm-secondary: #E7ECDF;
+  --cm-border: #D4DCCF;
+  --cm-text: #1D3027;
+  --cm-muted: #627166;
+  --cm-accent: #31553D;
+  --cm-accent-dark: #1B3026;
+  --cm-accent-light: #6E896C;
+  --cm-accent-tint: #E2EBDA;
   --cm-accent-text: #FFFFFF;
-  --cm-gold: #D99B00;
-  --cm-gold-light: #FFF8E6;
+  --cm-gold: #778E65;
+  --cm-gold-light: #EDF1DA;
 }
 
 .dark {
-  --cm-bg: #0D0F17;
-  --cm-surface: #151825;
-  --cm-card: #1D2132;
-  --cm-secondary: #252B40;
-  --cm-border: #2F3752;
-  --cm-text: #ECEAF2;
-  --cm-muted: #9BA3BF;
-  --cm-accent: #D4345A;
-  --cm-accent-dark: #AA2347;
-  --cm-accent-light: #F45B80;
-  --cm-accent-tint: #2B151F;
-  --cm-accent-text: #FFFFFF;
-  --cm-gold: #FFC72C;
-  --cm-gold-light: #33280B;
+  --cm-bg: #14231C;
+  --cm-surface: #1E3026;
+  --cm-card: #263A2E;
+  --cm-secondary: #2E4334;
+  --cm-border: #445B4B;
+  --cm-text: #F1F3E8;
+  --cm-muted: #B4C3B4;
+  --cm-accent: #C5D8B0;
+  --cm-accent-dark: #A9BF9A;
+  --cm-accent-light: #DCE7C7;
+  --cm-accent-tint: #2C4332;
+  --cm-accent-text: #1B3026;
+  --cm-gold: #DCE4B2;
+  --cm-gold-light: #354632;
 }
 
 *,
@@ -217,5 +217,4 @@ h6 {
 .auth-container.right-panel-active .auth-overlay-right {
   transform: translateX(20%);
 }
-
 
