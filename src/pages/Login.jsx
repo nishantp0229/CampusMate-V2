@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Compass, Eye, EyeOff, Moon, Sun, X } from 'lucide-react'
 import { useTheme } from '../App'
+import { useAuth } from '../context/AuthContext'
 import './Auth.css'
 
 const photo = (name) => `${import.meta.env.BASE_URL}landing/${name}.jpg`
@@ -22,7 +23,7 @@ function Field({ id, label, type = 'text', value, onChange, placeholder, autoCom
   )
 }
 
-function SignInForm({ prefix, data, setData, visible, setVisible, error, loading, onSubmit, onForgot, emailRef }) {
+function SignInForm({ prefix, data, setData, visible, setVisible, error, notice, loading, onSubmit, onForgot, emailRef }) {
   return (
     <form className="cm-auth-form" onSubmit={onSubmit}>
       <div className="cm-auth-form-heading">
@@ -30,11 +31,12 @@ function SignInForm({ prefix, data, setData, visible, setVisible, error, loading
         <h1>Good to see<br /><em>you again.</em></h1>
         <p>Sign in and pick up right where your campus day left off.</p>
       </div>
+      {notice && <div className="cm-auth-notice" role="status">{notice}</div>}
       {error && <p className="cm-auth-error" role="alert">{error}</p>}
       <Field id={`${prefix}-login-email`} label="University email" type="email" value={data.email} onChange={(email) => setData({ ...data, email })} placeholder="you@university.edu" autoComplete="email" inputRef={emailRef} />
       <Field id={`${prefix}-login-password`} label="Password" type={visible ? 'text' : 'password'} value={data.password} onChange={(password) => setData({ ...data, password })} placeholder="Enter your password" autoComplete="current-password" visible={visible} onToggle={() => setVisible(!visible)} aside={<button type="button" className="cm-auth-text-button" onClick={onForgot}>Forgot password?</button>} />
       <button className="cm-auth-submit" type="submit" disabled={loading}>{loading ? 'Signing in...' : <>Sign In <ArrowRight size={17} /></>}</button>
-      <p className="cm-auth-demo"><strong>Demo mode.</strong> Use any valid email and a password of at least 6 characters.</p>
+      <p className="cm-auth-demo">Sign in with your registered university account.</p>
     </form>
   )
 }
@@ -51,11 +53,11 @@ function SignUpForm({ prefix, data, setData, visible, setVisible, error, loading
       <Field id={`${prefix}-signup-name`} label="Full name" value={data.name} onChange={(name) => setData({ ...data, name })} placeholder="Your full name" autoComplete="name" inputRef={nameRef} />
       <Field id={`${prefix}-signup-email`} label="University email" type="email" value={data.email} onChange={(email) => setData({ ...data, email })} placeholder="you@university.edu" autoComplete="email" />
       <div className="cm-auth-passwords">
-        <Field id={`${prefix}-signup-password`} label="Password" type={visible ? 'text' : 'password'} value={data.password} onChange={(password) => setData({ ...data, password })} placeholder="8+ chars" autoComplete="new-password" visible={visible} onToggle={() => setVisible(!visible)} />
+        <Field id={`${prefix}-signup-password`} label="Password" type={visible ? 'text' : 'password'} value={data.password} onChange={(password) => setData({ ...data, password })} placeholder="6+ chars" autoComplete="new-password" visible={visible} onToggle={() => setVisible(!visible)} />
         <Field id={`${prefix}-signup-confirm`} label="Confirm password" type={visible ? 'text' : 'password'} value={data.confirmPassword} onChange={(confirmPassword) => setData({ ...data, confirmPassword })} placeholder="Repeat password" autoComplete="new-password" />
       </div>
       <button className="cm-auth-submit" type="submit" disabled={loading}>{loading ? 'Getting started...' : <>Create Account <ArrowRight size={17} /></>}</button>
-      <p className="cm-auth-demo"><strong>Demo mode.</strong> This form previews the experience; no account is created.</p>
+      <p className="cm-auth-demo">Your university student profile will be set up automatically.</p>
     </form>
   )
 }
@@ -80,16 +82,24 @@ export function AuthCard({ initialSignUp = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
+  const { user, signIn, signUp, resetPassword } = useAuth()
+
   const [isSignUp, setIsSignUp] = useState(() => location.pathname === '/signup' || initialSignUp)
   const [loginData, setLoginData] = useState({ email: '', password: '' })
   const [signupData, setSignupData] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [showSignupPassword, setShowSignupPassword] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Forgot password modal state
   const [forgotOpen, setForgotOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+
   const desktopLoginRef = useRef(null)
   const desktopSignupRef = useRef(null)
   const mobileLoginRef = useRef(null)
@@ -97,8 +107,17 @@ export function AuthCard({ initialSignUp = false }) {
   const focusAfterSwitch = useRef(false)
   const previousFocus = useRef(null)
   const closeDialogRef = useRef(null)
-  const authTimer = useRef(null)
   const forgotTimer = useRef(null)
+
+  // If already authenticated, redirect to target or dashboard
+  useEffect(() => {
+    if (user) {
+      const target = location.state?.from?.pathname || '/dashboard'
+      if (location.pathname !== target) {
+        navigate(target, { replace: true })
+      }
+    }
+  }, [user, navigate, location.pathname, location.state])
 
   useEffect(() => {
     if (!focusAfterSwitch.current) return
@@ -109,7 +128,6 @@ export function AuthCard({ initialSignUp = false }) {
   }, [isSignUp])
 
   useEffect(() => () => {
-    window.clearTimeout(authTimer.current)
     window.clearTimeout(forgotTimer.current)
   }, [])
 
@@ -121,57 +139,155 @@ export function AuthCard({ initialSignUp = false }) {
     if (signUp === isSignUp) return
     focusAfterSwitch.current = true
     setError('')
+    setNotice('')
     setIsSignUp(signUp)
   }
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault()
     setError('')
-    if (!loginData.email.trim() || !loginData.email.includes('@')) return setError('Please enter a valid university email address.')
-    if (loginData.password.length < 6) return setError('Password must be at least 6 characters.')
+    setNotice('')
+
+    const email = loginData.email.trim()
+    const password = loginData.password
+
+    if (!email || !email.includes('@')) {
+      return setError('Please enter a valid university email address.')
+    }
+    if (password.length < 6) {
+      return setError('Password must be at least 6 characters.')
+    }
+
     setLoading(true)
-    authTimer.current = window.setTimeout(() => { setLoading(false); navigate('/dashboard') }, 700)
+    try {
+      await signIn(email, password)
+      const destination = location.state?.from?.pathname || '/dashboard'
+      navigate(destination, { replace: true })
+    } catch (err) {
+      console.error('[CampusMate] Sign in error:', err)
+      setError(err.message || 'Invalid email or password. Please verify your credentials.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSignupSubmit = (event) => {
+  const handleSignupSubmit = async (event) => {
     event.preventDefault()
     setError('')
-    if (signupData.name.trim().length < 2) return setError('Please enter your full legal name.')
-    if (!signupData.email.trim() || !signupData.email.includes('@')) return setError('Please enter a valid university email address.')
-    if (signupData.password.length < 8) return setError('Password must be at least 8 characters long.')
-    if (signupData.password !== signupData.confirmPassword) return setError('Passwords do not match.')
+    setNotice('')
+
+    const name = signupData.name.trim()
+    const email = signupData.email.trim()
+    const password = signupData.password
+    const confirmPassword = signupData.confirmPassword
+
+    if (name.length < 2) {
+      return setError('Please enter your full legal name.')
+    }
+    if (!email || !email.includes('@')) {
+      return setError('Please enter a valid university email address.')
+    }
+    if (password.length < 6) {
+      return setError('Password must be at least 6 characters long.')
+    }
+    if (password !== confirmPassword) {
+      return setError('Passwords do not match.')
+    }
+
     setLoading(true)
-    authTimer.current = window.setTimeout(() => { setLoading(false); navigate('/dashboard') }, 700)
+    try {
+      const data = await signUp(email, password, name)
+      // If email confirmation is required by Supabase project settings
+      if (data?.user && !data?.session) {
+        setNotice('Account created! Please check your university email to confirm your account before logging in.')
+        setIsSignUp(false)
+      } else {
+        const destination = location.state?.from?.pathname || '/dashboard'
+        navigate(destination, { replace: true })
+      }
+    } catch (err) {
+      console.error('[CampusMate] Sign up error:', err)
+      setError(err.message || 'Registration failed. Please check your details.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const openForgot = () => {
     previousFocus.current = document.activeElement
+    setForgotError('')
+    setForgotSent(false)
     setForgotOpen(true)
   }
+
   const closeForgot = () => {
     window.clearTimeout(forgotTimer.current)
     setForgotOpen(false)
     setForgotSent(false)
+    setForgotError('')
     window.requestAnimationFrame(() => previousFocus.current?.focus())
   }
-  const handleForgotSubmit = (event) => {
+
+  const handleForgotSubmit = async (event) => {
     event.preventDefault()
-    if (!forgotEmail || !forgotEmail.includes('@')) return
-    setForgotSent(true)
-    forgotTimer.current = window.setTimeout(() => { setForgotEmail(''); closeForgot() }, 2200)
+    const email = forgotEmail.trim()
+    if (!email || !email.includes('@')) {
+      return setForgotError('Please enter a valid university email address.')
+    }
+
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      await resetPassword(email)
+      setForgotSent(true)
+      forgotTimer.current = window.setTimeout(() => {
+        setForgotEmail('')
+        closeForgot()
+      }, 3500)
+    } catch (err) {
+      console.error('[CampusMate] Forgot password error:', err)
+      setForgotError(err.message || 'Could not send reset email. Please try again.')
+    } finally {
+      setForgotLoading(false)
+    }
   }
+
   const handleDialogKeyDown = (event) => {
     if (event.key === 'Escape') closeForgot()
     if (event.key !== 'Tab') return
     const controls = event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled)')
     const first = controls[0]
     const last = controls[controls.length - 1]
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last?.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first?.focus()
+    }
   }
 
-  const loginProps = { data: loginData, setData: setLoginData, visible: showLoginPassword, setVisible: setShowLoginPassword, error: !isSignUp ? error : '', loading, onSubmit: handleLoginSubmit, onForgot: openForgot }
-  const signupProps = { data: signupData, setData: setSignupData, visible: showSignupPassword, setVisible: setShowSignupPassword, error: isSignUp ? error : '', loading, onSubmit: handleSignupSubmit }
+  const loginProps = {
+    data: loginData,
+    setData: setLoginData,
+    visible: showLoginPassword,
+    setVisible: setShowLoginPassword,
+    error: !isSignUp ? error : '',
+    notice: !isSignUp ? notice : '',
+    loading,
+    onSubmit: handleLoginSubmit,
+    onForgot: openForgot,
+  }
+
+  const signupProps = {
+    data: signupData,
+    setData: setSignupData,
+    visible: showSignupPassword,
+    setVisible: setShowSignupPassword,
+    error: isSignUp ? error : '',
+    loading,
+    onSubmit: handleSignupSubmit,
+  }
 
   return (
     <div className={`cm-auth ${theme === 'dark' ? 'is-dark' : ''}`}>
@@ -181,8 +297,12 @@ export function AuthCard({ initialSignUp = false }) {
           <span>CampusMate<small>MADE FOR CAMPUS LIFE</small></span>
         </Link>
         <div className="cm-auth-header-actions">
-          <button type="button" className="cm-auth-theme" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <Link className="cm-auth-back" to="/"><ArrowLeft size={16} /> <span>Back to CampusMate</span></Link>
+          <button type="button" className="cm-auth-theme" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <Link className="cm-auth-back" to="/">
+            <ArrowLeft size={16} /> <span>Back to CampusMate</span>
+          </Link>
         </div>
       </header>
 
@@ -205,7 +325,10 @@ export function AuthCard({ initialSignUp = false }) {
         <div className={`cm-auth-mobile ${isSignUp ? 'is-signup' : ''}`}>
           <div className="cm-auth-mobile-visual">
             <img src={photo('architecture')} alt="" width="1600" height="1067" />
-            <div><p className="cm-auth-eyebrow"><span /> YOUR NEXT CHAPTER AWAITS</p><p>A little more organised.<br /><em>A lot more campus life.</em></p></div>
+            <div>
+              <p className="cm-auth-eyebrow"><span /> YOUR NEXT CHAPTER AWAITS</p>
+              <p>A little more organised.<br /><em>A lot more campus life.</em></p>
+            </div>
           </div>
           <div className="cm-auth-mobile-tabs" aria-label="Choose sign in or sign up">
             <span aria-hidden="true" />
@@ -214,27 +337,43 @@ export function AuthCard({ initialSignUp = false }) {
           </div>
           <div className="cm-auth-mobile-window">
             <div className="cm-auth-mobile-track">
-              <div className="cm-auth-mobile-panel" aria-hidden={isSignUp} inert={isSignUp}><SignInForm {...loginProps} prefix="mobile" emailRef={mobileLoginRef} /></div>
-              <div className="cm-auth-mobile-panel" aria-hidden={!isSignUp} inert={!isSignUp}><SignUpForm {...signupProps} prefix="mobile" nameRef={mobileSignupRef} /></div>
+              <div className="cm-auth-mobile-panel" aria-hidden={isSignUp} inert={isSignUp}>
+                <SignInForm {...loginProps} prefix="mobile" emailRef={mobileLoginRef} />
+              </div>
+              <div className="cm-auth-mobile-panel" aria-hidden={!isSignUp} inert={!isSignUp}>
+                <SignUpForm {...signupProps} prefix="mobile" nameRef={mobileSignupRef} />
+              </div>
             </div>
           </div>
           <p className="cm-auth-mobile-credit">ILLUSTRATIVE PHOTO · UNSPLASH</p>
         </div>
       </main>
 
-      <footer className="cm-auth-footer"><span>© {currentYear} CAMPUSMATE · BUILT FOR STUDENT LIFE</span><span>FOR THE DAYS THAT BECOME YOUR STORY.</span></footer>
+      <footer className="cm-auth-footer">
+        <span>© {currentYear} CAMPUSMATE · BUILT FOR STUDENT LIFE</span>
+        <span>FOR THE DAYS THAT BECOME YOUR STORY.</span>
+      </footer>
 
       {forgotOpen && (
         <div className="cm-auth-modal-backdrop">
           <div className="cm-auth-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title" onKeyDown={handleDialogKeyDown}>
-            <button ref={closeDialogRef} className="cm-auth-dialog-close" type="button" onClick={closeForgot} aria-label="Close password reset"><X size={20} /></button>
-            <p className="cm-auth-eyebrow"><span /> A LITTLE HELP</p>
+            <button ref={closeDialogRef} className="cm-auth-dialog-close" type="button" onClick={closeForgot} aria-label="Close password reset">
+              <X size={20} />
+            </button>
+            <p className="cm-auth-eyebrow"><span /> ACCOUNT RECOVERY</p>
             <h2 id="reset-title">Reset your<br /><em>password.</em></h2>
-            <p>This is a demo. Enter an email to preview the reset flow; no email will be sent.</p>
-            {forgotSent ? <div className="cm-auth-confirmation" role="status"><Check size={18} /> Demo request received. No email was sent.</div> : (
+            <p>Enter your university email address. We will send you a secure link to reset your password.</p>
+            {forgotError && <p className="cm-auth-error" role="alert">{forgotError}</p>}
+            {forgotSent ? (
+              <div className="cm-auth-confirmation" role="status">
+                <Check size={18} /> Password reset link sent! Check your email inbox.
+              </div>
+            ) : (
               <form onSubmit={handleForgotSubmit}>
                 <Field id="reset-email" label="University email" type="email" value={forgotEmail} onChange={setForgotEmail} placeholder="you@university.edu" autoComplete="email" autoFocus />
-                <button className="cm-auth-submit" type="submit">Continue <ArrowRight size={17} /></button>
+                <button className="cm-auth-submit" type="submit" disabled={forgotLoading}>
+                  {forgotLoading ? 'Sending link...' : <>Continue <ArrowRight size={17} /></>}
+                </button>
               </form>
             )}
           </div>

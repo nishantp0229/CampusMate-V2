@@ -20,6 +20,7 @@ import {
   MOCK_EVENTS,
   MOCK_LOST_FOUND,
 } from '../utils/mockData'
+import { useAuth } from '../context/AuthContext'
 
 const photo = (name) => `${import.meta.env.BASE_URL}landing/${name}.jpg`
 
@@ -113,6 +114,7 @@ const formatEventDate = (dateStr) => {
 }
 
 function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
+  const { studentName, profile } = useAuth()
   const [tasks, setTasks] = useState(MOCK_TASKS)
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0)
   const [heroPaused, setHeroPaused] = useState(false)
@@ -190,7 +192,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
             <div className="workspace-hero-shade" />
             <div className="workspace-hero-content">
               <div>
-                <p className="workspace-hero-kicker"><span /> {slide.tag}</p>
+                <p className="workspace-hero-kicker"><span /> {studentName && studentName !== 'Student' ? `WELCOME, ${studentName.toUpperCase()} · ` : ''}{slide.tag}</p>
                 <h1>{slide.title}</h1>
                 <p className="workspace-hero-description">{slide.desc}</p>
                 <div className="workspace-hero-actions">
@@ -206,14 +208,14 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                   <button type="button" className="workspace-hero-arrow" aria-label="Next slide" onClick={() => { setCurrentHeroSlide((prev) => (prev + 1) % HERO_CAROUSEL_SLIDES.length); setHeroPaused(true) }}><ChevronRight size={17} /></button>
                   <button type="button" className="workspace-hero-play" aria-label={heroPaused ? 'Play slideshow' : 'Pause slideshow'} onClick={() => setHeroPaused(!heroPaused)}>{heroPaused ? <Play size={14} /> : <Pause size={14} />}</button>
                 </div>
-                <span className="workspace-hero-credit">ILLUSTRATIVE PHOTOGRAPHY · EXAMPLE DATA</span>
+                <span className="workspace-hero-credit">CAMPUS LIFE & MOMENTS</span>
               </div>
             </div>
           </section>
           <div className="workspace-overview" aria-label="Your day at a glance">
-            <div><span>YOUR TARGET CGPA</span><strong>8.6 <small>/ 10</small></strong><p>Example academic goal</p></div>
+            <div><span>YOUR TARGET CGPA</span><strong>8.6 <small>/ 10</small></strong><p>Academic target</p></div>
             <div><span>ATTENDANCE</span><strong>{attendanceRate}%</strong><p>Based on your calculator</p></div>
-            <div><span>DAY FLOW</span><strong>{DAY_FLOW.length} <small>moments</small></strong><p>Explore your sample schedule</p></div>
+            <div><span>DAY FLOW</span><strong>{DAY_FLOW.length} <small>moments</small></strong><p>Explore today’s schedule</p></div>
             <div><span>TASKS COMPLETED</span><strong>{completedCount} <small>/ {tasks.length}</small></strong><p>{weeklyPercent}% of your task list</p></div>
           </div>
         </div>
@@ -226,7 +228,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
               <button type="button" onClick={nextSpace} aria-label="Next campus space"><ChevronRight size={18} /></button>
             </div>
           </div>
-          <div ref={spaceScrollRef} className="workspace-space-rail" aria-label="Illustrative campus life photographs">
+          <div ref={spaceScrollRef} className="workspace-space-rail" aria-label="Campus life photographs">
             {CAMPUS_SPACES.map((space) => (
               <article className="workspace-space" key={space.name}>
                 <div><img src={space.image} alt="" width="1600" height="1067" loading="lazy" /><span>{space.category}</span></div>
@@ -234,7 +236,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
               </article>
             ))}
           </div>
-          <p className="workspace-spaces-note">ILLUSTRATIVE PHOTOGRAPHY · NOT A SPECIFIC CAMPUS</p>
+          <p className="workspace-spaces-note">CAMPUS LIFE & SPACES</p>
         </section>
 
         {/* ── 4. TWO-COLUMN INTERACTIVE TIMELINE & ACADEMIC SPRINT ── */}
@@ -248,7 +250,7 @@ function Dashboard({ lostFoundItems = MOCK_LOST_FOUND }) {
                     Your Fresher Day Flow ⏱️
                   </h3>
                   <p className="text-xs text-[var(--cm-muted)]">
-                    Wednesday Schedule · DTU Academic Quad
+                    Wednesday Schedule · {profile?.college || 'Campus Academic Quad'}
                   </p>
                 </div>
                 <Link

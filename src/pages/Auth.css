@@ -105,6 +105,8 @@
 .cm-auth-demo strong { color: var(--auth-text); }
 .cm-auth-error { padding: 10px 12px; border-left: 3px solid #9c5860; background: #f4e2df; color: #713c49; font-size: 12px; line-height: 1.5; }
 .cm-auth.is-dark .cm-auth-error { background: #563c3e; color: #ffe8e1; }
+.cm-auth-notice { padding: 10px 12px; border-left: 3px solid #294932; background: #d5e2cd; color: #294932; font-size: 12px; line-height: 1.5; margin-bottom: 12px; font-weight: 600; }
+.cm-auth.is-dark .cm-auth-notice { background: #1f3b26; color: #d1fae5; border-left-color: #10b981; }
 .cm-auth-signup-form { gap: 13px; }
 .cm-auth-signup-form .cm-auth-form-heading { margin-bottom: 0; }
 .cm-auth-signup-form .cm-auth-form-heading h1 { margin-top: 14px; font-size: clamp(40px, 3.7vw, 51px); }

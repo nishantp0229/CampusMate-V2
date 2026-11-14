@@ -122,7 +122,7 @@ function Planner() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div className="space-y-2">
-              <div className="workspace-page-kicker"><span /> ACADEMIC PLANNER / DEMO DATA</div>
+              <div className="workspace-page-kicker"><span /> ACADEMIC PLANNER · TASKS & SCHEDULE</div>
               <h1 className="font-['Poppins'] text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--cm-text)]">
                 Your academics, in order.
               </h1>

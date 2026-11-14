@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Menu, Bell, Moon, Sun, Search, X } from 'lucide-react'
 import { useTheme } from '../../App'
-import { MOCK_USER, MOCK_TASKS, MOCK_EVENTS, MOCK_RESOURCES, MOCK_LOST_FOUND } from '../../utils/mockData'
+import { useAuth } from '../../context/AuthContext'
+import { MOCK_TASKS, MOCK_EVENTS, MOCK_RESOURCES, MOCK_LOST_FOUND } from '../../utils/mockData'
 
 const pageTitles = {
   '/dashboard': 'Dashboard',
@@ -21,6 +22,7 @@ const notifications = [
 
 function Topbar({ onMenuClick, menuOpen, menuButtonRef, lostFoundItems = MOCK_LOST_FOUND }) {
   const { theme, toggleTheme } = useTheme()
+  const { studentName, studentInitials } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
@@ -79,7 +81,6 @@ function Topbar({ onMenuClick, menuOpen, menuButtonRef, lostFoundItems = MOCK_LO
     <header className="workspace-topbar">
       <button ref={menuButtonRef} type="button" onClick={onMenuClick} className="workspace-icon-button workspace-menu-button" aria-label="Open navigation" aria-expanded={menuOpen} aria-controls="workspace-sidebar"><Menu size={20} /></button>
       <div className="workspace-breadcrumb"><span>YOUR CAMPUS</span><span>/</span><strong>{pageTitles[pathname] || 'Workspace'}</strong></div>
-      <span className="workspace-demo-label">DEMO DATA</span>
 
       <div ref={searchRef} className="workspace-search">
         <form onSubmit={(event) => { event.preventDefault(); if (query) setSearchOpen(true) }}>
@@ -104,13 +105,13 @@ function Topbar({ onMenuClick, menuOpen, menuButtonRef, lostFoundItems = MOCK_LO
           <button type="button" onClick={() => setNotifOpen((open) => !open)} className="workspace-icon-button" aria-label="Notifications" aria-expanded={notifOpen}><Bell size={19} /><span className="workspace-notification-dot" /></button>
           {notifOpen && (
             <div className="workspace-dropdown workspace-notification-list">
-              <div className="workspace-notification-heading"><strong>Campus notices</strong><span>EXAMPLE DATA</span></div>
+              <div className="workspace-notification-heading"><strong>Campus notices</strong><span>LATEST</span></div>
               {notifications.map((item) => <Link key={item.id} to={item.link} onClick={() => setNotifOpen(false)}><strong>{item.title}</strong><span>{item.tag}</span></Link>)}
             </div>
           )}
         </div>
         <button type="button" onClick={toggleTheme} className="workspace-icon-button" aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>{theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}</button>
-        <Link to="/profile" className="workspace-topbar-avatar" aria-label={`View ${MOCK_USER.name}'s profile`}>{MOCK_USER.avatarInitials}</Link>
+        <Link to="/profile" className="workspace-topbar-avatar" aria-label={`View ${studentName}'s profile`}>{studentInitials}</Link>
       </div>
     </header>
   )

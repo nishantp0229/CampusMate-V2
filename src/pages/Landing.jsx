@@ -8,11 +8,11 @@ const number = (index) => String(index + 1).padStart(2, '0')
 const currentYear = new Date().getFullYear()
 
 const heroSlides = [
-  { image: 'architecture', label: 'A place to begin', detail: 'Campus architecture' },
-  { image: 'students', label: 'Better together', detail: 'Student life' },
-  { image: 'studying', label: 'Make space to learn', detail: 'Academics' },
-  { image: 'workshop', label: 'Find your people', detail: 'Clubs & collaboration' },
-  { image: 'event', label: 'Be part of the moment', detail: 'Events & culture' },
+  { image: 'hero-sunset-campus', label: 'A place to begin', detail: 'Sunset campus architecture', position: 'center center' },
+  { image: 'hero-classroom-students', label: 'Better together', detail: 'Classroom & learning', position: 'center center' },
+  { image: 'hero-library-interior', label: 'Make space to learn', detail: 'Library & study spaces', position: 'center center' },
+  { image: 'hero-bluesky-campus', label: 'Find your people', detail: 'Campus horizons', position: 'center 35%' },
+  { image: 'event', label: 'Be part of the moment', detail: 'Events & culture', position: 'center center' },
 ]
 
 const tips = [
@@ -191,7 +191,17 @@ function Landing() {
           onFocusCapture={() => setHeroFocused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHeroFocused(false) }}>
           <div className="landing-hero-images" aria-hidden="true">
             {heroSlides.map((slide, index) => (
-              <img key={slide.image} className={index === heroIndex ? 'is-active' : ''} src={image(slide.image)} alt="" width="1600" height="1067" loading={index === 0 ? 'eager' : 'lazy'} fetchPriority={index === 0 ? 'high' : 'auto'} />
+              <img
+                key={slide.image}
+                className={index === heroIndex ? 'is-active' : ''}
+                src={image(slide.image)}
+                alt={slide.detail}
+                width="1600"
+                height="1067"
+                loading={index === 0 ? 'eager' : 'lazy'}
+                fetchPriority={index === 0 ? 'high' : 'auto'}
+                style={{ objectPosition: slide.position || 'center' }}
+              />
             ))}
           </div>
           <div className="landing-hero-shade" />
@@ -215,7 +225,7 @@ function Landing() {
                 <ArrowButton direction="right" label="Next hero slide" onClick={() => moveHero(1)} />
                 {!reducedMotion && <button className="landing-play" type="button" aria-label={playing ? 'Pause slideshow' : 'Play slideshow'} onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} /> : <Play size={15} />}</button>}
               </div>
-              <div className="landing-hero-caption"><span>THE CAMPUS EXPERIENCE / {number(heroIndex)}</span><strong>{heroSlides[heroIndex].label}</strong><small>Illustrative photography · Unsplash</small></div>
+              <div className="landing-hero-caption"><span>THE CAMPUS EXPERIENCE / {number(heroIndex)}</span><strong>{heroSlides[heroIndex].label}</strong><small>Campus life & academics</small></div>
             </div>
           </div>
         </section>
@@ -254,8 +264,8 @@ function Landing() {
             </div>
             <div className="landing-module-stage">
               <div className="landing-module-image">
-                <div className="landing-preview-bar"><span><i /><i /><i /></span><span>CAMPUSMATE / {currentModule.name.toUpperCase()}</span><span>APP PREVIEW · DEMO DATA</span></div>
-                <img key={currentModule.image} src={image(currentModule.image)} alt={`${currentModule.name} application preview with sample data`} width="1280" height="800" />
+                <div className="landing-preview-bar"><span><i /><i /><i /></span><span>CAMPUSMATE / {currentModule.name.toUpperCase()}</span><span>APP PREVIEW · INTERACTIVE VIEW</span></div>
+                <img key={currentModule.image} src={image(currentModule.image)} alt={`${currentModule.name} application interface preview`} width="1280" height="800" />
               </div>
               <div className="landing-module-info">
                 <div className="landing-module-count"><strong>{number(moduleIndex)}</strong><span> / {number(modules.length - 1)}</span></div>
@@ -273,7 +283,7 @@ function Landing() {
                 </button>
               ))}
             </div>
-            <p className="landing-preview-note">A LOOK INSIDE THE APP · PREVIEWS SHOW EXAMPLE DATA</p>
+            <p className="landing-preview-note">A LOOK INSIDE THE APP · DESIGNED FOR STUDENT LIFE</p>
           </div>
         </section>
 
