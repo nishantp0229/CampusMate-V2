@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, CheckSquare, CalendarDays, Compass, BookOpen, UserCircle, X, ArrowUpRight, LogOut } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, CalendarDays, Compass, BookOpen, UserCircle, X, ArrowUpRight, LogOut, Shield } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const groups = [
@@ -25,7 +25,7 @@ const groups = [
 ]
 
 function Sidebar({ isOpen, isMobile, onClose, closeButtonRef }) {
-  const { signOut, studentName, studentInitials, profile } = useAuth()
+  const { signOut, studentName, studentInitials, profile, isAdmin } = useAuth()
   return (
     <aside id="workspace-sidebar" className={`workspace-sidebar ${isOpen ? 'is-open' : ''}`} aria-hidden={isMobile && !isOpen ? true : undefined} inert={isMobile && !isOpen}>
       <div className="workspace-sidebar-head">
@@ -47,6 +47,18 @@ function Sidebar({ isOpen, isMobile, onClose, closeButtonRef }) {
             ))}
           </div>
         ))}
+        {isAdmin && (
+          <div className="workspace-nav-group">
+            <p>Administration</p>
+            <NavLink
+              to="/admin"
+              onClick={onClose}
+              className={({ isActive }) => `workspace-nav-link ${isActive ? 'is-active' : ''}`}
+            >
+              <Shield size={18} strokeWidth={1.7} /><span>Admin Panel</span>
+            </NavLink>
+          </div>
+        )}
         <div className="workspace-nav-group">
           <p>Session</p>
           <button

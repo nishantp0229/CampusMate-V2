@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react'
-import { useTheme } from '../App'
+import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 
 const INPUT_CLASS =

@@ -1,6 +1,6 @@
 // src/pages/LostFound.jsx — Marketplace-style CampusFind Lost & Found module with rich photography
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Plus,
@@ -13,7 +13,16 @@ import {
 } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import { MOCK_LOST_FOUND, MOCK_USER, ITEM_CATEGORY_IMAGES } from '../utils/mockData'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+
+const ITEM_CATEGORY_IMAGES = {
+  Electronics: `${import.meta.env.BASE_URL}landing/phone.jpg`,
+  Accessories: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=600&q=80',
+  Documents: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80',
+  Books: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
+  Other: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80',
+}
 
 const TABS = ['All', 'Lost', 'Found', 'Saved', 'Resolved']
 const CATEGORIES = ['All', 'Electronics', 'Accessories', 'Documents', 'Books', 'Other']
@@ -36,23 +45,91 @@ const labelCls = 'mb-1 block text-xs font-bold text-[var(--cm-muted)] uppercase 
 const formatDate = (d) =>
   new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
+function LostFound() {
+  const { user, profile } = useAuth()
   const { state } = useLocation()
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLocation, setSelectedLocation] = useState('All')
-  const [bookmarkedIds, setBookmarkedIds] = useState(['lf-1'])
+  const [bookmarkedIds, setBookmarkedIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('campusmate_saved_lf') || '[]')
+    } catch {
+      return []
+    }
+  })
   const [showActivity, setShowActivity] = useState(false)
-  const [notifications, setNotifications] = useState([
-    { id: 'n-1', text: 'Listing "OnePlus Nord (Black)" is active in Central Library.', time: '10m ago' },
-    { id: 'n-2', text: 'Someone responded regarding "Physics Notebook — Sem 5".', time: '1h ago' },
-  ])
-  const [selectedItem, setSelectedItem] = useState(() =>
-    items.find((i) => i.id === state?.selectedId) || null
-  )
+  const [notifications, setNotifications] = useState([])
+  const [selectedItem, setSelectedItem] = useState(null)
   const [isFormOpen, setIsFormOpen] = useState(Boolean(state?.openAdd))
   const [formData, setFormData] = useState(INITIAL_FORM)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchItems = async () => {
+      if (isMounted) {
+        setLoading(true)
+        setError(null)
+      }
+
+      try {
+        const { data, error: err } = await supabase
+          .from('lost_found')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (!isMounted) return
+        if (err) throw err
+
+        const normalized = (data || []).map((row) => ({
+          id: row.id,
+          userId: row.user_id,
+          type: row.type,
+          itemName: row.item_name,
+          description: row.description,
+          category: row.category,
+          locationTag: row.location_tag || 'Campus',
+          location: row.location,
+          dateOccurred: row.date_occurred,
+          imageUrl:
+            row.image_url ||
+            ITEM_CATEGORY_IMAGES[row.category] ||
+            ITEM_CATEGORY_IMAGES.Other,
+          contactName: row.contact_name,
+          contactInfo: row.contact_info,
+          isResolved: Boolean(row.is_resolved),
+          createdAt: row.created_at,
+        }))
+
+        setItems(normalized)
+        if (state?.selectedId) {
+          const found = normalized.find((i) => i.id === state.selectedId)
+          if (found) setSelectedItem(found)
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error fetching lost & found items:', err)
+          setError('Unable to load listings. Please try again.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchItems()
+
+    return () => {
+      isMounted = false
+    }
+  }, [state?.selectedId])
 
   const addNotification = (text) =>
     setNotifications((prev) => [{ id: `n-${Date.now()}`, text, time: 'Just now' }, ...prev])
@@ -64,41 +141,82 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
     }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.itemName.trim() || !formData.location.trim()) return
-
-    const newItem = {
-      id: `lf-${Date.now()}`,
-      type: formData.type,
-      itemName: formData.itemName.trim(),
-      description: formData.description.trim() || 'Reported on CampusFind marketplace.',
-      category: formData.category,
-      locationTag: formData.locationTag,
-      location: formData.location.trim(),
-      dateOccurred: formData.dateOccurred
-        ? new Date(formData.dateOccurred).toISOString()
-        : new Date().toISOString(),
-      imageUrl:
-        formData.imageUrl ||
-        ITEM_CATEGORY_IMAGES[formData.category] ||
-        ITEM_CATEGORY_IMAGES.Other,
-      isResolved: false,
-      userId: MOCK_USER.id,
-      createdAt: new Date().toISOString(),
+    if (!user) {
+      alert('Please log in to report an item.')
+      return
     }
 
-    onAddItem?.(newItem)
-    addNotification(`Posted ${newItem.type} item "${newItem.itemName}" in ${newItem.locationTag}.`)
-    setFormData(INITIAL_FORM)
-    setIsFormOpen(false)
+    setSubmitting(true)
+    try {
+      const payload = {
+        user_id: user.id,
+        type: formData.type,
+        item_name: formData.itemName.trim(),
+        description: formData.description.trim() || 'Reported on CampusFind marketplace.',
+        category: formData.category,
+        location_tag: formData.locationTag,
+        location: formData.location.trim(),
+        date_occurred: formData.dateOccurred
+          ? new Date(formData.dateOccurred).toISOString()
+          : new Date().toISOString(),
+        image_url:
+          formData.imageUrl ||
+          ITEM_CATEGORY_IMAGES[formData.category] ||
+          ITEM_CATEGORY_IMAGES.Other,
+        contact_name: profile?.full_name || user?.user_metadata?.full_name || 'Student',
+        contact_info: 'Available via CampusFind inquiry',
+        is_resolved: false,
+      }
+
+      const { data, error: insertErr } = await supabase
+        .from('lost_found')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (insertErr) throw insertErr
+
+      const newItem = {
+        id: data.id,
+        userId: data.user_id,
+        type: data.type,
+        itemName: data.item_name,
+        description: data.description,
+        category: data.category,
+        locationTag: data.location_tag,
+        location: data.location,
+        dateOccurred: data.date_occurred,
+        imageUrl: data.image_url,
+        contactName: data.contact_name,
+        contactInfo: data.contact_info,
+        isResolved: Boolean(data.is_resolved),
+        createdAt: data.created_at,
+      }
+
+      setItems((prev) => [newItem, ...prev])
+      addNotification(`Posted ${newItem.type} item "${newItem.itemName}" in ${newItem.locationTag}.`)
+      setFormData(INITIAL_FORM)
+      setIsFormOpen(false)
+    } catch (err) {
+      console.error('Error reporting item:', err)
+      alert(err.message || 'Failed to submit post. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const toggleBookmark = (id, e) => {
     e?.stopPropagation()
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    )
+    setBookmarkedIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      try {
+        localStorage.setItem('campusmate_saved_lf', JSON.stringify(next))
+      } catch {}
+      return next
+    })
   }
 
   const handleFoundAction = (item) => {
@@ -106,12 +224,26 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
     alert(`Thank you! A response has been delivered to the student who reported "${item.itemName}".`)
   }
 
-  const handleMarkReturned = (item) => {
-    onUpdateItem?.(item.id, { isResolved: true })
-    if (selectedItem?.id === item.id) {
-      setSelectedItem((prev) => ({ ...prev, isResolved: true }))
+  const handleMarkReturned = async (item) => {
+    try {
+      const { error: updateErr } = await supabase
+        .from('lost_found')
+        .update({ is_resolved: true })
+        .eq('id', item.id)
+
+      if (updateErr) throw updateErr
+
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, isResolved: true } : i))
+      )
+      if (selectedItem?.id === item.id) {
+        setSelectedItem((prev) => ({ ...prev, isResolved: true }))
+      }
+      addNotification(`Item "${item.itemName}" was marked as returned.`)
+    } catch (err) {
+      console.error('Error updating item:', err)
+      alert(err.message || 'Failed to update item.')
     }
-    addNotification(`Item "${item.itemName}" was marked as returned.`)
   }
 
   const filteredItems = items.filter((item) => {
@@ -279,7 +411,15 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
         </div>
 
         {/* ── 4. LARGE PHOTO LISTINGS GRID ── */}
-        {filteredItems.length === 0 ? (
+        {loading ? (
+          <div className="py-16 text-center text-xs font-semibold text-[var(--cm-muted)]">
+            Loading campus listings...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50/50 p-6 text-center text-xs text-rose-700">
+            {error}
+          </div>
+        ) : filteredItems.length === 0 ? (
           <EmptyState
             icon={Compass}
             title="No items found"
@@ -576,9 +716,10 @@ function LostFound({ items = MOCK_LOST_FOUND, onAddItem, onUpdateItem }) {
             </button>
             <button
               type="submit"
-              className="workspace-primary-button"
+              disabled={submitting}
+              className="workspace-primary-button disabled:opacity-50"
             >
-              Post to Marketplace
+              {submitting ? 'Posting...' : 'Post to Marketplace'}
             </button>
           </div>
         </form>

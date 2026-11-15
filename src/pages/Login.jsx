@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Compass, Eye, EyeOff, Moon, Sun, X } from 'lucide-react'
-import { useTheme } from '../App'
+import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import './Auth.css'
 

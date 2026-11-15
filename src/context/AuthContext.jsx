@@ -11,10 +11,34 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileError, setProfileError] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Cache refs to prevent redundant fetches and infinite loops
   const profileUserIdRef = useRef(null)
   const isFetchingProfileRef = useRef(false)
+
+  // ── 0. Check admin status from public.admin_users table ────
+  const checkAdminStatus = useCallback(async (userId) => {
+    if (!supabase || !userId) {
+      setIsAdmin(false)
+      return
+    }
+    try {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (!error && data) {
+        setIsAdmin(true)
+      } else {
+        setIsAdmin(false)
+      }
+    } catch {
+      setIsAdmin(false)
+    }
+  }, [])
 
   // ── 1. Fetch user profile from public.profiles (stable, deduplicated) ──
   const fetchProfile = useCallback(async (userId, userMetadata = null, force = false) => {
@@ -110,6 +134,9 @@ export function AuthProvider({ children }) {
         setUser(currentUser)
         if (currentUser) {
           fetchProfile(currentUser.id, currentUser.user_metadata)
+          checkAdminStatus(currentUser.id)
+        } else {
+          setIsAdmin(false)
         }
       })
       .catch((err) => {
@@ -138,10 +165,12 @@ export function AuthProvider({ children }) {
 
       if (currentUser) {
         fetchProfile(currentUser.id, currentUser.user_metadata)
+        checkAdminStatus(currentUser.id)
       } else {
         profileUserIdRef.current = null
         setProfile(null)
         setProfileError(null)
+        setIsAdmin(false)
       }
     })
 
@@ -149,7 +178,7 @@ export function AuthProvider({ children }) {
       isMounted = false
       subscription?.unsubscribe()
     }
-  }, [fetchProfile])
+  }, [fetchProfile, checkAdminStatus])
 
   // ── 3. Update profile fields ───────────────────────────────
   const updateProfile = async (updates) => {
@@ -229,6 +258,7 @@ export function AuthProvider({ children }) {
     setSession(null)
     setUser(null)
     setProfile(null)
+    setIsAdmin(false)
   }
 
   const resetPassword = async (email) => {
@@ -271,6 +301,7 @@ export function AuthProvider({ children }) {
         profile,
         profileLoading,
         profileError,
+        isAdmin,
         studentName,
         studentInitials,
         studentEmail,
