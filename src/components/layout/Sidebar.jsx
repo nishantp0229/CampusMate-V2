@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, CheckSquare, CalendarDays, Compass, BookOpen, UserCircle, X, ArrowUpRight, LogOut, Shield, MessageCircle, Users, ShoppingBag, Ghost } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { requestBrowserFullscreen } from '../../lib/anonymous'
+import { isCampusAnonymousEnabled, requestBrowserFullscreen } from '../../lib/anonymous'
 
 const groups = [
   {
@@ -31,6 +31,12 @@ const groups = [
 
 function Sidebar({ isOpen, isMobile, onClose, closeButtonRef }) {
   const { signOut, studentName, studentInitials, profile, isAdmin } = useAuth()
+  const anonymousEnabled = isCampusAnonymousEnabled()
+  const visibleGroups = groups.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => link.path !== '/anonymous' || anonymousEnabled),
+  }))
+
   return (
     <aside id="workspace-sidebar" className={`workspace-sidebar ${isOpen ? 'is-open' : ''}`} aria-hidden={isMobile && !isOpen ? true : undefined} inert={isMobile && !isOpen}>
       <div className="workspace-sidebar-head">
@@ -42,7 +48,7 @@ function Sidebar({ isOpen, isMobile, onClose, closeButtonRef }) {
       </div>
 
       <nav className="workspace-nav" aria-label="Workspace navigation">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <div className="workspace-nav-group" key={group.label}>
             <p>{group.label}</p>
             {group.links.map(({ label, path, icon: Icon }) => (

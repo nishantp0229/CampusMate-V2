@@ -4,7 +4,7 @@ import { Menu, Bell, Moon, Sun, Search, X, Ghost } from 'lucide-react'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { requestBrowserFullscreen } from '../../lib/anonymous'
+import { isCampusAnonymousEnabled, requestBrowserFullscreen } from '../../lib/anonymous'
 
 const pageTitles = {
   '/dashboard': 'Dashboard',
@@ -270,15 +270,17 @@ function Topbar({ onMenuClick, menuOpen, menuButtonRef }) {
         >
           {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
         </button>
-        <Link
-          to="/anonymous"
-          onClick={() => requestBrowserFullscreen()}
-          className="workspace-icon-button"
-          aria-label="CampusAnonymous"
-          title="CampusAnonymous - Full-Screen Ephemeral Chat"
-        >
-          <Ghost size={19} />
-        </Link>
+        {isCampusAnonymousEnabled() && (
+          <Link
+            to="/anonymous"
+            onClick={() => requestBrowserFullscreen()}
+            className="workspace-icon-button"
+            aria-label="CampusAnonymous"
+            title="CampusAnonymous - Full-Screen Ephemeral Chat"
+          >
+            <Ghost size={19} />
+          </Link>
+        )}
         <Link
           to="/profile"
           className="workspace-topbar-avatar"

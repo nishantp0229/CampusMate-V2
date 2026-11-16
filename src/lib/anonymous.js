@@ -7,6 +7,18 @@ export const ANONYMOUS_STATUS = {
   ENDED: 'ended',
 }
 
+/**
+ * Checks whether CampusAnonymous is enabled via feature flag.
+ * Disabled by default in production (VITE_ENABLE_CAMPUS_ANONYMOUS=false).
+ */
+export function isCampusAnonymousEnabled() {
+  const flag =
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ENABLE_CAMPUS_ANONYMOUS) ??
+    (typeof process !== 'undefined' && process.env && process.env.VITE_ENABLE_CAMPUS_ANONYMOUS)
+
+  return String(flag).toLowerCase() === 'true'
+}
+
 export const REPORT_REASONS = [
   'Harassment or hate speech',
   'Explicit or inappropriate content',

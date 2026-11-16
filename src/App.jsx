@@ -1,6 +1,6 @@
 // src/App.jsx — Root component: routing + dark-mode context provider
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 
 // Layout (shared shell for authenticated pages)
@@ -26,6 +26,7 @@ import Community from './pages/Community'
 import TeamUp    from './pages/TeamUp'
 import Market    from './pages/Market'
 import Anonymous from './pages/Anonymous'
+import { isCampusAnonymousEnabled } from './lib/anonymous'
 
 // 404
 import NotFound from './pages/NotFound'
@@ -71,7 +72,16 @@ function App() {
                   <Route path="/admin"      element={<Admin />} />
                 </Route>
                 {/* ── Immersive Full-Screen CampusAnonymous ── */}
-                <Route path="/anonymous" element={<Anonymous />} />
+                <Route
+                  path="/anonymous"
+                  element={
+                    isCampusAnonymousEnabled() ? (
+                      <Anonymous />
+                    ) : (
+                      <Navigate to="/dashboard" replace />
+                    )
+                  }
+                />
               </Route>
 
               {/* ── Fallback ───────────────────────── */}

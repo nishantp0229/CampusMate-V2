@@ -10,6 +10,7 @@ import {
   getIceServers,
   requestBrowserFullscreen,
   exitBrowserFullscreen,
+  isCampusAnonymousEnabled,
 } from './anonymous.js'
 
 const migration = readFileSync(new URL('../../database/migration_campus_anonymous.sql', import.meta.url), 'utf8')
@@ -84,6 +85,35 @@ test('requestBrowserFullscreen and exitBrowserFullscreen handle non-browser and 
   await assert.doesNotReject(async () => {
     await exitBrowserFullscreen()
   })
+})
+
+test('isCampusAnonymousEnabled defaults to false and respects VITE_ENABLE_CAMPUS_ANONYMOUS', () => {
+  const orig = process.env.VITE_ENABLE_CAMPUS_ANONYMOUS
+  try {
+    delete process.env.VITE_ENABLE_CAMPUS_ANONYMOUS
+    assert.equal(isCampusAnonymousEnabled(), false)
+
+    process.env.VITE_ENABLE_CAMPUS_ANONYMOUS = 'false'
+    assert.equal(isCampusAnonymousEnabled(), false)
+
+    process.env.VITE_ENABLE_CAMPUS_ANONYMOUS = '0'
+    assert.equal(isCampusAnonymousEnabled(), false)
+
+    process.env.VITE_ENABLE_CAMPUS_ANONYMOUS = 'random'
+    assert.equal(isCampusAnonymousEnabled(), false)
+
+    process.env.VITE_ENABLE_CAMPUS_ANONYMOUS = 'true'
+    assert.equal(isCampusAnonymousEnabled(), true)
+
+    process.env.VITE_ENABLE_CAMPUS_ANONYMOUS = 'TRUE'
+    assert.equal(isCampusAnonymousEnabled(), true)
+  } finally {
+    if (orig !== undefined) {
+      process.env.VITE_ENABLE_CAMPUS_ANONYMOUS = orig
+    } else {
+      delete process.env.VITE_ENABLE_CAMPUS_ANONYMOUS
+    }
+  }
 })
 
 // ─── Static SQL Migration Verification Tests ──────────────────

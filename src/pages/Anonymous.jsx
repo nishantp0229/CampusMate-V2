@@ -8,7 +8,7 @@
 // - Zero real identities exposed — random aliases only
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   Ghost,
   Video,
@@ -35,6 +35,7 @@ import {
   formatMessageTime,
   requestBrowserFullscreen,
   exitBrowserFullscreen,
+  isCampusAnonymousEnabled,
 } from '../lib/anonymous'
 import { AnonymousWebRTC } from '../lib/anonymousWebrtc'
 import {
@@ -52,6 +53,9 @@ const createSysId = (prefix) => `${prefix}-${++sysMsgCounter}`
 
 export default function Anonymous() {
   const { user } = useAuth()
+  if (!isCampusAnonymousEnabled()) {
+    return <Navigate to="/dashboard" replace />
+  }
   return <AnonymousWorkspace key={user?.id || 'signed-out'} />
 }
 
