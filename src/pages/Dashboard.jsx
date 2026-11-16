@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { attendancePercentage, isAttendanceSafe } from '../lib/attendance'
 
 const photo = (name) => `${import.meta.env.BASE_URL}landing/${name}.jpg`
 
@@ -89,7 +90,7 @@ const CAMPUS_SPACES = [
 ]
 
 const formatDate = (dateStr) =>
-  new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  dateStr ? new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No due date'
 
 const formatEventDate = (dateStr) => {
   const d = new Date(dateStr)
@@ -118,7 +119,11 @@ function Dashboard() {
   const [tasks, setTasks] = useState([])
   const [events, setEvents] = useState([])
   const [lostFound, setLostFound] = useState([])
+  const [tasksUnavailable, setTasksUnavailable] = useState(false)
+  const [eventsUnavailable, setEventsUnavailable] = useState(false)
+  const [lostFoundUnavailable, setLostFoundUnavailable] = useState(false)
   const [dayFlow, setDayFlow] = useState([])
+  const [timetableUnavailable, setTimetableUnavailable] = useState(false)
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0)
   const [heroPaused, setHeroPaused] = useState(false)
   const [heroHovered, setHeroHovered] = useState(false)
@@ -126,12 +131,22 @@ function Dashboard() {
   const [taskFilter, setTaskFilter] = useState('pending')
   const [calcClassesAttended, setCalcClassesAttended] = useState(0)
   const [calcTotalClasses, setCalcTotalClasses] = useState(0)
+  const [dashboardError, setDashboardError] = useState('')
   const spaceScrollRef = useRef(null)
 
   useEffect(() => {
     let isMounted = true
 
     const fetchDashboardData = async () => {
+      if (!supabase) {
+        setDashboardError('Supabase is not configured.')
+        setTasksUnavailable(true)
+        setEventsUnavailable(true)
+        setLostFoundUnavailable(true)
+        setTimetableUnavailable(true)
+        return
+      }
+      const errors = []
       try {
         // 1. Fetch user tasks
         if (user?.id) {
@@ -142,6 +157,7 @@ function Dashboard() {
             .order('due_date', { ascending: true })
 
           if (!isMounted) return
+          setTasksUnavailable(Boolean(taskErr))
 
           if (!taskErr && taskData) {
             setTasks(
@@ -154,6 +170,8 @@ function Dashboard() {
                 dueDate: t.due_date,
               }))
             )
+          } else if (taskErr) {
+            errors.push('Assignments could not be loaded.')
           }
         }
 
@@ -161,10 +179,12 @@ function Dashboard() {
         const { data: eventData, error: eventErr } = await supabase
           .from('events')
           .select('*')
+          .gte('event_date', new Date().toISOString())
           .order('event_date', { ascending: true })
           .limit(3)
 
         if (!isMounted) return
+        setEventsUnavailable(Boolean(eventErr))
 
         if (!eventErr && eventData) {
           setEvents(
@@ -175,9 +195,10 @@ function Dashboard() {
               location: e.location,
               date: e.event_date,
               image: e.image_url || `${import.meta.env.BASE_URL}landing/event.jpg`,
-              attendees: 0,
             }))
           )
+        } else if (eventErr) {
+          errors.push('Events could not be loaded.')
         }
 
         // 3. Fetch recent lost & found listings
@@ -188,6 +209,7 @@ function Dashboard() {
           .limit(3)
 
         if (!isMounted) return
+        setLostFoundUnavailable(Boolean(lfErr))
 
         if (!lfErr && lfData) {
           setLostFound(
@@ -197,9 +219,11 @@ function Dashboard() {
               location: item.location,
               locationTag: item.location_tag,
               type: item.type,
-              imageUrl: item.image_url || `${import.meta.env.BASE_URL}landing/phone.jpg`,
+              imageUrl: item.image_url && !item.image_url.startsWith('blob:') ? item.image_url : `${import.meta.env.BASE_URL}landing/phone.jpg`,
             }))
           )
+        } else if (lfErr) {
+          errors.push('Lost and found listings could not be loaded.')
         }
 
         // 4. Fetch today's timetable classes from Supabase
@@ -213,9 +237,11 @@ function Dashboard() {
 
           if (ttErr) {
             console.warn('[CampusMate] Timetable fetch notice (migration pending):', ttErr.message)
+            errors.push('Your timetable could not be loaded.')
           }
 
           if (isMounted) {
+            setTimetableUnavailable(Boolean(ttErr))
             const timetableList = (!ttErr && ttData) ? ttData : []
             const now = new Date()
             const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
@@ -230,7 +256,7 @@ function Dashboard() {
                   id: c.id,
                   time: `${formatTime12(start)} – ${formatTime12(end)}`,
                   title: c.subject,
-                  location: `${c.room || 'Campus Quad'}${c.instructor ? ` · ${c.instructor}` : ''}`,
+                  location: `${c.room || 'Location not provided'}${c.instructor ? ` · ${c.instructor}` : ''}`,
                   tag: c.class_type || 'Class',
                   active: isActive,
                 }
@@ -246,6 +272,7 @@ function Dashboard() {
 
           if (attErr) {
             console.warn('[CampusMate] Attendance fetch notice (migration pending):', attErr.message)
+            errors.push('Your saved attendance could not be loaded.')
           }
 
           if (isMounted) {
@@ -261,9 +288,15 @@ function Dashboard() {
             }
           }
         }
+        if (isMounted) setDashboardError(errors.join(' '))
       } catch (err) {
         if (isMounted) {
           console.error('Error fetching dashboard data:', err)
+          setDashboardError('Some dashboard information could not be loaded. Please try again.')
+          setTasksUnavailable(true)
+          setEventsUnavailable(true)
+          setLostFoundUnavailable(true)
+          setTimetableUnavailable(true)
         }
       }
     }
@@ -299,16 +332,21 @@ function Dashboard() {
     )
 
     try {
-      await supabase.from('tasks').update({ status: newStatus }).eq('id', id)
+      const { data, error } = await supabase.from('tasks')
+        .update({ status: newStatus }).eq('id', id).eq('user_id', user.id).select('id').maybeSingle()
+      if (error) throw error
+      if (!data) throw new Error('The task was not updated. It may no longer exist or access was denied.')
     } catch (err) {
       console.error('Error updating task status:', err)
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: task.status } : t)))
+      alert(err.message || 'Could not update task status.')
     }
   }
 
   const completedCount = tasks.filter((t) => t.status === 'completed').length
   const weeklyPercent = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0
-  const attendanceRate =
-    calcTotalClasses > 0 ? Math.round((calcClassesAttended / calcTotalClasses) * 100) : 0
+  const attendanceRate = attendancePercentage(calcClassesAttended, calcTotalClasses)
+  const attendanceSafe = isAttendanceSafe(calcClassesAttended, calcTotalClasses)
 
   const visibleTasks = tasks.filter((t) =>
     taskFilter === 'all' ? true : t.status === taskFilter
@@ -340,6 +378,11 @@ function Dashboard() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-10 px-4 sm:px-6 lg:px-8">
+        {dashboardError && (
+          <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-xs font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+            {dashboardError}
+          </div>
+        )}
         <div className="workspace-welcome">
           <section className="workspace-hero" aria-label="CampusMate highlights" aria-roledescription="carousel"
             onMouseEnter={() => setHeroHovered(true)} onMouseLeave={() => setHeroHovered(false)}
@@ -371,10 +414,10 @@ function Dashboard() {
             </div>
           </section>
           <div className="workspace-overview" aria-label="Your day at a glance">
-            <div><span>YOUR TARGET CGPA</span><strong>8.5 <small>/ 10</small></strong><p>Academic target</p></div>
-            <div><span>ATTENDANCE</span><strong>{attendanceRate}%</strong><p>Based on your calculator</p></div>
-            <div><span>DAY FLOW</span><strong>{dayFlow.length} <small>moments</small></strong><p>Explore today’s schedule</p></div>
-            <div><span>TASKS COMPLETED</span><strong>{completedCount} <small>/ {tasks.length}</small></strong><p>{weeklyPercent}% of your task list</p></div>
+            <div><span>PENDING TASKS</span><strong>{tasksUnavailable ? '--' : tasks.length - completedCount}</strong><p>From your task list</p></div>
+            <div><span>ATTENDANCE</span><strong>{attendanceRate === null ? '--%' : `${attendanceRate}%`}</strong><p>Based on your calculator</p></div>
+            <div><span>DAY FLOW</span><strong>{timetableUnavailable ? '--' : dayFlow.length} <small>moments</small></strong><p>Explore today’s schedule</p></div>
+            <div><span>TASKS COMPLETED</span><strong>{tasksUnavailable ? '--' : completedCount} <small>/ {tasksUnavailable ? '--' : tasks.length}</small></strong><p>{tasksUnavailable ? 'Unavailable' : `${weeklyPercent}% of your task list`}</p></div>
           </div>
         </div>
 
@@ -408,7 +451,7 @@ function Dashboard() {
                     Your Fresher Day Flow ⏱️
                   </h3>
                   <p className="text-xs text-[var(--cm-muted)]">
-                    {todayDayLong} Schedule · {profile?.college || 'Campus Academic Quad'}
+                    {todayDayLong} Schedule · {profile?.college || 'Your timetable'}
                   </p>
                 </div>
                 <Link
@@ -420,7 +463,14 @@ function Dashboard() {
               </div>
 
               {/* Journey Timeline */}
-              {dayFlow.length === 0 ? (
+              {timetableUnavailable ? (
+                <div className="rounded-xl border border-dashed border-[var(--cm-border)] p-8 text-center">
+                  <p className="text-sm font-bold text-[var(--cm-text)]">Today&apos;s timetable could not be loaded.</p>
+                  <Link to="/planner" className="mt-3 inline-block text-xs font-bold text-[var(--cm-accent)] hover:underline">
+                    Check your planner →
+                  </Link>
+                </div>
+              ) : dayFlow.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--cm-border)] p-8 text-center">
                   <p className="text-sm font-bold text-[var(--cm-text)]">No classes scheduled today</p>
                   <p className="mt-1 text-xs text-[var(--cm-muted)]">
@@ -545,7 +595,9 @@ function Dashboard() {
               </div>
 
               {/* Tasks list */}
-              {visibleTasks.length === 0 ? (
+              {tasksUnavailable ? (
+                <p className="py-8 text-center text-xs font-semibold text-[var(--cm-muted)]">Your tasks could not be loaded.</p>
+              ) : visibleTasks.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--cm-border)] py-8 px-4 text-center">
                   <p className="text-xs font-semibold text-[var(--cm-muted)]">
                     {taskFilter === 'pending'
@@ -646,7 +698,9 @@ function Dashboard() {
               </div>
 
               <div className="space-y-4">
-                {events.length === 0 ? (
+                {eventsUnavailable ? (
+                  <p className="py-6 text-center text-xs text-[var(--cm-muted)]">Events could not be loaded.</p>
+                ) : events.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-[var(--cm-border)] p-6 text-center">
                     <p className="text-xs font-bold text-[var(--cm-text)]">No upcoming events scheduled</p>
                     <p className="mt-1 text-[11px] text-[var(--cm-muted)]">
@@ -728,11 +782,13 @@ function Dashboard() {
                 </Link>
               </div>
 
-              {lostFound.length === 0 ? (
+              {lostFoundUnavailable ? (
+                <p className="py-6 text-center text-xs text-[var(--cm-muted)]">Listings could not be loaded.</p>
+              ) : lostFound.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--cm-border)] p-6 text-center">
                   <p className="text-xs font-bold text-[var(--cm-text)]">No lost & found listings</p>
                   <p className="mt-1 text-[11px] text-[var(--cm-muted)]">
-                    All items are safe! Found something misplaced?
+                    No listings are currently available. Found something misplaced?
                   </p>
                   <Link
                     to="/lost-found"
@@ -822,21 +878,23 @@ function Dashboard() {
                   <span className="text-[var(--cm-muted)]">Current Standing:</span>
                   <span
                     className={`font-['Poppins'] text-sm font-extrabold ${
-                      attendanceRate >= 75
+                      attendanceRate === null
+                        ? 'text-[var(--cm-muted)]'
+                        : attendanceSafe
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
-                    {attendanceRate}% {attendanceRate >= 75 ? '✓ Safe for Exams' : '⚠️ Danger Debarred'}
+                    {attendanceRate === null ? 'Enter valid attendance' : `${attendanceRate}% ${attendanceSafe ? '✓ At or above 75%' : '⚠️ Below 75%'}`}
                   </span>
                 </div>
 
                 <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cm-secondary)]">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      attendanceRate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'
+                      attendanceSafe ? 'bg-emerald-500' : 'bg-rose-500'
                     }`}
-                    style={{ width: `${Math.min(100, attendanceRate)}%` }}
+                    style={{ width: `${Math.min(100, attendanceRate ?? 0)}%` }}
                   />
                 </div>
               </div>

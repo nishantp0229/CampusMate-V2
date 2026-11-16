@@ -1,12 +1,81 @@
 -- =============================================================
--- CampusMate — Migration: Hardened Admin System, Attendance & Timetable
+-- CampusMate — Phase A: Admin System, Attendance & Timetable
 --
--- INSTRUCTIONS:
--- 1. Review this script carefully.
--- 2. Open your Supabase Dashboard -> SQL Editor.
--- 3. Paste and run this script.
--- 4. To assign yourself as an Administrator, execute the snippet at the bottom.
+-- Review before running in the Supabase SQL Editor. Requires schema.sql.
+-- This script does not delete existing records. Review any custom RLS policies
+-- separately: PostgreSQL combines permissive policies with OR.
 -- =============================================================
+
+BEGIN;
+
+-- Do not silently combine unknown policies with the rules below. Review and
+-- resolve any policy reported by this check before applying the migration.
+DO $$
+DECLARE
+  unexpected TEXT;
+BEGIN
+  SELECT string_agg(format('%I.%I: %s', schemaname, tablename, policyname), ', ')
+  INTO unexpected
+  FROM pg_catalog.pg_policies
+  WHERE schemaname = 'public'
+    AND tablename IN ('admin_users', 'events', 'lost_found', 'resources', 'attendance', 'timetable', 'moderation_actions')
+    AND NOT (
+      (tablename = 'admin_users' AND policyname = ANY (ARRAY[
+        'admin_users: authenticated users can check admin status',
+        'admin_users: users can check own admin status'
+      ])) OR
+      (tablename = 'events' AND policyname = ANY (ARRAY[
+        'events: all logged-in users can view public events',
+        'events: users can view own private events',
+        'events: users can insert own events',
+        'events: users can update own events',
+        'events: owners or admins can update',
+        'events: owners can update or admins can moderate',
+        'events: users can delete own events',
+        'events: owners or admins can delete',
+        'events: owners can delete or admins can moderate',
+        'events: admins can view all events for moderation'
+      ])) OR
+      (tablename = 'lost_found' AND policyname = ANY (ARRAY[
+        'lost_found: all logged-in users can view posts',
+        'lost_found: users can insert own posts',
+        'lost_found: users can update own posts',
+        'lost_found: owners or admins can update',
+        'lost_found: owners can update or admins can moderate',
+        'lost_found: users can delete own posts',
+        'lost_found: owners or admins can delete',
+        'lost_found: owners can delete or admins can moderate'
+      ])) OR
+      (tablename = 'resources' AND policyname = ANY (ARRAY[
+        'resources: all logged-in users can view resources',
+        'resources: users can insert own resources',
+        'resources: users can update own resources',
+        'resources: owners or admins can update',
+        'resources: owners can update or admins can moderate',
+        'resources: users can delete own resources',
+        'resources: owners or admins can delete',
+        'resources: owners can delete or admins can moderate'
+      ])) OR
+      (tablename = 'attendance' AND policyname = ANY (ARRAY[
+        'attendance: students can view own records',
+        'attendance: students can insert own records',
+        'attendance: students can update own records',
+        'attendance: students can delete own records'
+      ])) OR
+      (tablename = 'timetable' AND policyname = ANY (ARRAY[
+        'timetable: students can view own timetable',
+        'timetable: students can insert own timetable',
+        'timetable: students can update own timetable',
+        'timetable: students can delete own timetable'
+      ])) OR
+      (tablename = 'moderation_actions' AND policyname = 'moderation_actions: admins can view')
+    );
+
+  IF unexpected IS NOT NULL THEN
+    RAISE EXCEPTION 'Review unexpected RLS policies before continuing: %', unexpected;
+  END IF;
+END;
+$$;
 
 -- Ensure updated_at trigger function exists
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -40,9 +109,10 @@ CREATE POLICY "admin_users: users can check own admin status"
   TO authenticated
   USING (user_id = (SELECT auth.uid()));
 
--- Revoke write permissions from authenticated and anonymous users
--- Only postgres superuser / service role (e.g., Supabase SQL Editor) can grant admin roles
-REVOKE INSERT, UPDATE, DELETE ON public.admin_users FROM authenticated, anon, public;
+-- Clients may only check their own membership. Only a trusted database role
+-- may add or remove administrators.
+REVOKE ALL ON public.admin_users FROM PUBLIC, anon, authenticated;
+GRANT SELECT (user_id) ON public.admin_users TO authenticated;
 
 
 -- ─── 2. HARDENED is_admin() FUNCTION ─────────────────────────
@@ -62,9 +132,38 @@ AS $$
 $$;
 
 -- Restrict execution to authenticated students and backend service role
-REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO service_role;
+
+
+-- Aggregate counts only: no private profile or academic records are returned.
+CREATE OR REPLACE FUNCTION public.admin_platform_stats()
+RETURNS TABLE (
+  total_profiles BIGINT,
+  total_events BIGINT,
+  total_lost_found BIGINT,
+  total_resources BIGINT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+STABLE
+AS $$
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Administrator access required' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY SELECT
+    (SELECT COUNT(*) FROM public.profiles),
+    (SELECT COUNT(*) FROM public.events WHERE is_public IS TRUE),
+    (SELECT COUNT(*) FROM public.lost_found),
+    (SELECT COUNT(*) FROM public.resources);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_platform_stats() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_platform_stats() TO authenticated;
 
 
 -- ─── 3. IMMUTABLE POST OWNERSHIP TRIGGER ─────────────────────
@@ -109,12 +208,22 @@ CREATE TRIGGER trg_prevent_resources_user_change
 -- Drops both original schema.sql and previous migration policy names to prevent duplicate OR-chains.
 
 -- ── 4a. Events Moderation ──
--- Admins can view all events (including private) for moderation
+-- Restore the original public/owner SELECT policies. Admins do not gain access
+-- to another student's private events.
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "events: all logged-in users can view public events" ON public.events;
+CREATE POLICY "events: all logged-in users can view public events"
+  ON public.events FOR SELECT TO authenticated
+  USING (is_public IS TRUE);
+DROP POLICY IF EXISTS "events: users can view own private events" ON public.events;
+CREATE POLICY "events: users can view own private events"
+  ON public.events FOR SELECT TO authenticated
+  USING (created_by = (SELECT auth.uid()));
 DROP POLICY IF EXISTS "events: admins can view all events for moderation" ON public.events;
-CREATE POLICY "events: admins can view all events for moderation"
-  ON public.events FOR SELECT
-  TO authenticated
-  USING (public.is_admin());
+DROP POLICY IF EXISTS "events: users can insert own events" ON public.events;
+CREATE POLICY "events: users can insert own events"
+  ON public.events FOR INSERT TO authenticated
+  WITH CHECK (created_by = (SELECT auth.uid()));
 
 -- Drop old update policies
 DROP POLICY IF EXISTS "events: users can update own events" ON public.events;
@@ -124,8 +233,8 @@ DROP POLICY IF EXISTS "events: owners can update or admins can moderate" ON publ
 CREATE POLICY "events: owners can update or admins can moderate"
   ON public.events FOR UPDATE
   TO authenticated
-  USING (created_by = (SELECT auth.uid()) OR public.is_admin())
-  WITH CHECK (created_by = (SELECT auth.uid()) OR public.is_admin());
+  USING (created_by = (SELECT auth.uid()) OR (is_public IS TRUE AND public.is_admin()))
+  WITH CHECK (created_by = (SELECT auth.uid()) OR (is_public IS TRUE AND public.is_admin()));
 
 -- Drop old delete policies
 DROP POLICY IF EXISTS "events: users can delete own events" ON public.events;
@@ -135,10 +244,19 @@ DROP POLICY IF EXISTS "events: owners can delete or admins can moderate" ON publ
 CREATE POLICY "events: owners can delete or admins can moderate"
   ON public.events FOR DELETE
   TO authenticated
-  USING (created_by = (SELECT auth.uid()) OR public.is_admin());
+  USING (created_by = (SELECT auth.uid()) OR (is_public IS TRUE AND public.is_admin()));
 
 
 -- ── 4b. Lost and Found Moderation ──
+ALTER TABLE public.lost_found ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "lost_found: all logged-in users can view posts" ON public.lost_found;
+CREATE POLICY "lost_found: all logged-in users can view posts"
+  ON public.lost_found FOR SELECT TO authenticated
+  USING (true);
+DROP POLICY IF EXISTS "lost_found: users can insert own posts" ON public.lost_found;
+CREATE POLICY "lost_found: users can insert own posts"
+  ON public.lost_found FOR INSERT TO authenticated
+  WITH CHECK (user_id = (SELECT auth.uid()));
 -- Drop old update policies
 DROP POLICY IF EXISTS "lost_found: users can update own posts" ON public.lost_found;
 DROP POLICY IF EXISTS "lost_found: owners or admins can update" ON public.lost_found;
@@ -162,6 +280,15 @@ CREATE POLICY "lost_found: owners can delete or admins can moderate"
 
 
 -- ── 4c. Resources Moderation ──
+ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "resources: all logged-in users can view resources" ON public.resources;
+CREATE POLICY "resources: all logged-in users can view resources"
+  ON public.resources FOR SELECT TO authenticated
+  USING (true);
+DROP POLICY IF EXISTS "resources: users can insert own resources" ON public.resources;
+CREATE POLICY "resources: users can insert own resources"
+  ON public.resources FOR INSERT TO authenticated
+  WITH CHECK (user_id = (SELECT auth.uid()));
 -- Drop old update policies
 DROP POLICY IF EXISTS "resources: users can update own resources" ON public.resources;
 DROP POLICY IF EXISTS "resources: owners or admins can update" ON public.resources;
@@ -184,7 +311,64 @@ CREATE POLICY "resources: owners can delete or admins can moderate"
   USING (user_id = (SELECT auth.uid()) OR public.is_admin());
 
 
--- ─── 5. ATTENDANCE TABLE ─────────────────────────────────────
+-- ─── 5. MODERATION AUDIT ─────────────────────────────────────
+-- Records metadata only when an admin changes another student's public post.
+CREATE TABLE IF NOT EXISTS public.moderation_actions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  content_type TEXT NOT NULL CHECK (content_type IN ('events', 'lost_found', 'resources')),
+  content_id  UUID NOT NULL,
+  action      TEXT NOT NULL CHECK (action IN ('UPDATE', 'DELETE')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS moderation_actions_created_at_idx ON public.moderation_actions(created_at DESC);
+
+ALTER TABLE public.moderation_actions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.moderation_actions FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.moderation_actions TO authenticated;
+DROP POLICY IF EXISTS "moderation_actions: admins can view" ON public.moderation_actions;
+CREATE POLICY "moderation_actions: admins can view"
+  ON public.moderation_actions FOR SELECT TO authenticated
+  USING (public.is_admin());
+
+CREATE OR REPLACE FUNCTION public.log_moderation_action()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  post_owner UUID;
+BEGIN
+  IF TG_TABLE_NAME = 'events' THEN
+    post_owner := OLD.created_by;
+  ELSE
+    post_owner := OLD.user_id;
+  END IF;
+
+  IF auth.uid() IS NOT NULL AND auth.uid() <> post_owner AND public.is_admin() THEN
+    INSERT INTO public.moderation_actions (actor_id, content_type, content_id, action)
+    VALUES (auth.uid(), TG_TABLE_NAME, OLD.id, TG_OP);
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.log_moderation_action() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS log_events_moderation ON public.events;
+CREATE TRIGGER log_events_moderation AFTER UPDATE OR DELETE ON public.events
+  FOR EACH ROW EXECUTE FUNCTION public.log_moderation_action();
+DROP TRIGGER IF EXISTS log_lost_found_moderation ON public.lost_found;
+CREATE TRIGGER log_lost_found_moderation AFTER UPDATE OR DELETE ON public.lost_found
+  FOR EACH ROW EXECUTE FUNCTION public.log_moderation_action();
+DROP TRIGGER IF EXISTS log_resources_moderation ON public.resources;
+CREATE TRIGGER log_resources_moderation AFTER UPDATE OR DELETE ON public.resources
+  FOR EACH ROW EXECUTE FUNCTION public.log_moderation_action();
+
+
+-- ─── 6. ATTENDANCE TABLE ─────────────────────────────────────
 -- Subject-wise attendance tracked privately per student.
 -- Enforces: 0 <= attended_classes <= total_classes
 
@@ -208,6 +392,8 @@ CREATE TRIGGER update_attendance_updated_at
 
 -- Attendance RLS: strictly private to each student (admins CANNOT view personal attendance)
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.attendance FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.attendance TO authenticated;
 
 DROP POLICY IF EXISTS "attendance: students can view own records" ON public.attendance;
 CREATE POLICY "attendance: students can view own records"
@@ -235,7 +421,7 @@ CREATE POLICY "attendance: students can delete own records"
   USING (user_id = (SELECT auth.uid()));
 
 
--- ─── 6. WEEKLY TIMETABLE TABLE ───────────────────────────────
+-- ─── 7. WEEKLY TIMETABLE TABLE ───────────────────────────────
 -- Each student can organize their weekly class schedule.
 
 CREATE TABLE IF NOT EXISTS public.timetable (
@@ -264,6 +450,8 @@ CREATE TRIGGER update_timetable_updated_at
 
 -- Timetable RLS: strictly private to each student (admins CANNOT view personal timetable)
 ALTER TABLE public.timetable ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.timetable FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.timetable TO authenticated;
 
 DROP POLICY IF EXISTS "timetable: students can view own timetable" ON public.timetable;
 CREATE POLICY "timetable: students can view own timetable"
@@ -291,7 +479,9 @@ CREATE POLICY "timetable: students can delete own timetable"
   USING (user_id = (SELECT auth.uid()));
 
 
--- ─── 7. HOW TO ASSIGN AN ADMINISTRATOR ACCOUNT: ──────────────
+COMMIT;
+
+-- ─── 8. HOW TO ASSIGN AN ADMINISTRATOR ACCOUNT: ──────────────
 -- In Supabase -> SQL Editor, run this snippet with your user UUID:
 --
 -- INSERT INTO public.admin_users (user_id) 

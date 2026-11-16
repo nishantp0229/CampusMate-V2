@@ -106,18 +106,18 @@ const LABEL_CLASS = 'mb-1 block text-xs font-bold text-[var(--cm-muted)] upperca
 
 function Events() {
   const { state } = useLocation()
-  const { user, studentName } = useAuth()
+  const { user, studentName, isAdmin } = useAuth()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedFilter, setSelectedFilter] = useState('All Events')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedEvent, setSelectedEvent] = useState(null)
-  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isAddOpen, setIsAddOpen] = useState(Boolean(state?.openCreate))
   const [editingEventId, setEditingEventId] = useState(null)
   const [formData, setFormData] = useState(INITIAL_FORM)
   const [submitting, setSubmitting] = useState(false)
-  const [registeredEvents, setRegisteredEvents] = useState(() => {
+  const [savedEvents, setSavedEvents] = useState(() => {
     try {
       const stored = localStorage.getItem(`cm-rsvps-${user?.id}`)
       return stored ? new Set(JSON.parse(stored)) : new Set()
@@ -159,6 +159,7 @@ function Events() {
           const loaded = (data || []).map((e) => ({
             id: e.id,
             created_by: e.created_by,
+            isPublic: e.is_public === true,
             title: e.title,
             description: e.description || '',
             category: e.category || 'general',
@@ -167,7 +168,6 @@ function Events() {
             organizer: e.organizer || 'Student Chapter',
             registrationUrl: e.registration_url,
             image: e.image_url || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
-            attendees: 12,
           }))
           setEvents(loaded)
 
@@ -195,21 +195,16 @@ function Events() {
     }
   }, [state?.selectedId])
 
-  const toggleRSVP = (eventId) => {
-    setRegisteredEvents((prev) => {
-      const next = new Set(prev)
-      if (next.has(eventId)) {
-        next.delete(eventId)
-      } else {
-        next.add(eventId)
-      }
-      try {
-        localStorage.setItem(`cm-rsvps-${user?.id}`, JSON.stringify([...next]))
-      } catch (err) {
-        console.error('[CampusMate] Error saving RSVP:', err)
-      }
-      return next
-    })
+  const toggleSavedEvent = (eventId) => {
+    const next = new Set(savedEvents)
+    if (next.has(eventId)) next.delete(eventId)
+    else next.add(eventId)
+    try {
+      localStorage.setItem(`cm-rsvps-${user?.id}`, JSON.stringify([...next]))
+      setSavedEvents(next)
+    } catch {
+      alert('Could not save this event on this device.')
+    }
   }
 
   const filteredEvents = events
@@ -231,7 +226,9 @@ function Events() {
     e?.stopPropagation()
     setEditingEventId(event.id)
     const d = new Date(event.date)
-    const dateStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : ''
+    const dateStr = !isNaN(d.getTime())
+      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      : ''
     const hours = !isNaN(d.getTime()) ? String(d.getHours()).padStart(2, '0') : '10'
     const mins = !isNaN(d.getTime()) ? String(d.getMinutes()).padStart(2, '0') : '00'
 
@@ -252,19 +249,24 @@ function Events() {
     e?.stopPropagation()
     if (!window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) return
     try {
-      const { error: delErr } = await supabase
+      const { data, error: delErr } = await supabase
         .from('events')
         .delete()
         .eq('id', eventId)
+        .select('id')
+        .maybeSingle()
 
       if (delErr) {
         alert('Could not delete event: ' + delErr.message)
+      } else if (!data) {
+        alert('The event was not deleted. It may no longer exist or access was denied.')
       } else {
         setEvents((prev) => prev.filter((ev) => ev.id !== eventId))
         if (selectedEvent?.id === eventId) setSelectedEvent(null)
       }
     } catch (err) {
       console.error('[CampusMate] Exception deleting event:', err)
+      alert('Could not delete event. Please try again.')
     }
   }
 
@@ -285,9 +287,7 @@ function Events() {
         location: formData.location.trim(),
         organizer: formData.organizer.trim() || studentName || 'Campus Student',
         registration_url: formData.registrationUrl.trim() || null,
-        description: formData.description.trim() || 'Exciting campus event open to all students.',
-        image_url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
-        is_public: true,
+        description: formData.description.trim() || null,
       }
 
       if (editingEventId) {
@@ -337,7 +337,7 @@ function Events() {
       } else {
         const { data, error: insertErr } = await supabase
           .from('events')
-          .insert({ ...payload, created_by: user.id })
+          .insert({ ...payload, created_by: user.id, is_public: true })
           .select()
           .single()
 
@@ -348,18 +348,17 @@ function Events() {
           const created = {
             id: data.id,
             created_by: data.created_by,
+            isPublic: data.is_public === true,
             title: data.title,
             category: data.category,
             date: data.event_date,
             location: data.location,
             organizer: data.organizer,
             registrationUrl: data.registration_url,
-            image: data.image_url,
+            image: data.image_url || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
             description: data.description,
-            attendees: 1,
           }
           setEvents((prev) => [created, ...prev])
-          setRegisteredEvents((prev) => new Set(prev).add(created.id))
           setFormData(INITIAL_FORM)
           setEditingEventId(null)
           setIsAddOpen(false)
@@ -367,6 +366,7 @@ function Events() {
       }
     } catch (err) {
       console.error('[CampusMate] Exception saving event:', err)
+      alert('Could not save event. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -385,6 +385,9 @@ function Events() {
               </h1>
               <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
                 Connect with flagship technical chapters, cultural councils, and athletic teams. Discover upcoming college fests and workshops.
+              </p>
+              <p className="text-xs text-[var(--cm-muted)]">
+                Saving an event is local to this device and does not register you. Use the organizer&apos;s registration link when available.
               </p>
             </div>
 
@@ -472,7 +475,7 @@ function Events() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event) => {
               const { month, day } = formatDateBlock(event.date)
-              const isRegistered = registeredEvents.has(event.id)
+              const isSaved = savedEvents.has(event.id)
 
               return (
                 <div
@@ -546,7 +549,7 @@ function Events() {
                         View Details
                       </button>
 
-                      {user?.id && event.created_by === user.id && (
+                      {user?.id && (event.created_by === user.id || (isAdmin && event.isPublic)) && (
                         <div className="flex items-center gap-1 border-l border-[var(--cm-border)]/60 pl-2">
                           <button
                             type="button"
@@ -572,19 +575,19 @@ function Events() {
 
                     <button
                       type="button"
-                      onClick={() => toggleRSVP(event.id)}
+                      onClick={() => toggleSavedEvent(event.id)}
                       className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
-                        isRegistered
+                        isSaved
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                           : 'workspace-primary-button'
                       }`}
                     >
-                      {isRegistered ? (
+                      {isSaved ? (
                         <>
-                          <CheckCircle size={13} /> Registered
+                          <CheckCircle size={13} /> Saved on this device
                         </>
                       ) : (
-                        'RSVP / Register'
+                        'Save Event'
                       )}
                     </button>
                   </div>
@@ -692,6 +695,8 @@ function Events() {
                 <option value="fest">Fest / Cultural</option>
                 <option value="seminar">Seminar</option>
                 <option value="sports">Sports Tournament</option>
+                <option value="cultural">Cultural</option>
+                <option value="academic">Academic</option>
                 <option value="technical">Technical</option>
                 <option value="general">General</option>
               </select>
@@ -829,6 +834,9 @@ function Events() {
             <p className="text-xs sm:text-sm text-[var(--cm-text)] leading-relaxed">
               {selectedEvent.description}
             </p>
+            <p className="text-xs text-[var(--cm-muted)]">
+              In-app RSVP is not available. Saving this event does not register you.
+            </p>
 
             <div className="grid grid-cols-2 gap-3 text-xs bg-[var(--cm-bg)] p-3.5 rounded-2xl border border-[var(--cm-border)]">
               <div>
@@ -851,7 +859,7 @@ function Events() {
                   Close
                 </button>
 
-                {user?.id && selectedEvent.created_by === user.id && (
+                {user?.id && (selectedEvent.created_by === user.id || (isAdmin && selectedEvent.isPublic)) && (
                   <div className="flex items-center gap-1 border-l border-[var(--cm-border)]/60 pl-2">
                     <button
                       type="button"
@@ -888,14 +896,14 @@ function Events() {
                 )}
                 <button
                   type="button"
-                  onClick={() => toggleRSVP(selectedEvent.id)}
+                  onClick={() => toggleSavedEvent(selectedEvent.id)}
                   className={`rounded-xl px-4 py-2 text-xs font-bold cursor-pointer transition ${
-                    registeredEvents.has(selectedEvent.id)
+                    savedEvents.has(selectedEvent.id)
                       ? 'bg-emerald-600 text-white'
                       : 'workspace-primary-button'
                   }`}
                 >
-                  {registeredEvents.has(selectedEvent.id) ? 'Registered ✓' : 'Register Now'}
+                  {savedEvents.has(selectedEvent.id) ? 'Saved on this device ✓' : 'Save Event'}
                 </button>
               </div>
             </div>

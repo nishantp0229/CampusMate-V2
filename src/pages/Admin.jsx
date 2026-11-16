@@ -12,27 +12,37 @@ import {
   RefreshCw,
   Search,
   Lock,
+  MessageCircle,
+  Ghost,
+  ShoppingBag,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import CommunityModeration from '../components/CommunityModeration'
+import AnonymousModeration from '../components/AnonymousModeration'
+import MarketModeration from '../components/MarketModeration'
 
 const TABS = [
   { id: 'events', label: 'CampusConnect Events', icon: CalendarDays },
   { id: 'lost_found', label: 'CampusFind Listings', icon: Compass },
   { id: 'resources', label: 'NoteNest Resources', icon: BookOpen },
+  { id: 'community', label: 'CampusCommunity', icon: MessageCircle },
+  { id: 'market', label: 'CampusMarket', icon: ShoppingBag },
+  { id: 'anonymous', label: 'Anonymous Reports', icon: Ghost },
 ]
 
 export default function Admin() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, adminLoading, adminError } = useAuth()
   const [activeTab, setActiveTab] = useState('events')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  const [error, setError] = useState('')
   const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalEvents: 0,
-    totalLostFound: 0,
-    totalResources: 0,
+    totalUsers: null,
+    totalEvents: null,
+    totalLostFound: null,
+    totalResources: null,
   })
 
   const [events, setEvents] = useState([])
@@ -41,50 +51,45 @@ export default function Admin() {
 
   // Fetch admin dashboard data
   const fetchData = useCallback(async () => {
-    if (!supabase || !user) {
+    if (!supabase || !user?.id || !isAdmin) {
       setLoading(false)
       return
     }
 
     setLoading(true)
+    setError('')
     try {
-      // 1. Fetch counts
       const [
-        { count: userCount },
-        { count: eventCount },
-        { count: lfCount },
-        { count: resCount },
+        statsResult,
+        eventsResult,
+        lostFoundResult,
+        resourcesResult,
       ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('events').select('*', { count: 'exact', head: true }),
-        supabase.from('lost_found').select('*', { count: 'exact', head: true }),
-        supabase.from('resources').select('*', { count: 'exact', head: true }),
+        supabase.rpc('admin_platform_stats').single(),
+        supabase.from('events').select('*').eq('is_public', true).order('created_at', { ascending: false }),
+        supabase.from('lost_found').select('*').order('created_at', { ascending: false }),
+        supabase.from('resources').select('*').order('created_at', { ascending: false }),
       ])
 
+      const failure = [statsResult, eventsResult, lostFoundResult, resourcesResult].find((result) => result.error)
+      if (failure) throw failure.error
+
       setStats({
-        totalUsers: userCount || 0,
-        totalEvents: eventCount || 0,
-        totalLostFound: lfCount || 0,
-        totalResources: resCount || 0,
+        totalUsers: statsResult.data.total_profiles,
+        totalEvents: statsResult.data.total_events,
+        totalLostFound: statsResult.data.total_lost_found,
+        totalResources: statsResult.data.total_resources,
       })
-
-      // 2. Fetch full records for moderation
-      const [{ data: eventsData }, { data: lfData }, { data: resData }] =
-        await Promise.all([
-          supabase.from('events').select('*').order('created_at', { ascending: false }),
-          supabase.from('lost_found').select('*').order('created_at', { ascending: false }),
-          supabase.from('resources').select('*').order('created_at', { ascending: false }),
-        ])
-
-      setEvents(eventsData || [])
-      setLostFound(lfData || [])
-      setResources(resData || [])
+      setEvents(eventsResult.data || [])
+      setLostFound(lostFoundResult.data || [])
+      setResources(resourcesResult.data || [])
     } catch (err) {
       console.error('[CampusMate Admin] Error loading data:', err)
+      setError(`Could not load moderation data: ${err.message || 'Please try again.'}`)
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user?.id, isAdmin])
 
   useEffect(() => {
     if (isAdmin) {
@@ -94,38 +99,18 @@ export default function Admin() {
     }
   }, [isAdmin, fetchData])
 
-  // Admin delete actions (enforced by RLS)
-  const handleDeleteEvent = async (id) => {
-    if (!window.confirm('Admin Confirmation: Permanently delete this event?')) return
+  // The database verifies the role and records moderation actions.
+  const handleDelete = async (table, id, label, setItems, statKey) => {
+    if (!window.confirm(`Admin confirmation: Permanently delete this ${label}?`)) return
     setActionLoading(true)
     try {
-      const { error } = await supabase.from('events').delete().eq('id', id)
-      if (error) {
-        alert('Failed to delete event: ' + error.message)
-      } else {
-        setEvents((prev) => prev.filter((item) => item.id !== id))
-        setStats((prev) => ({ ...prev, totalEvents: Math.max(0, prev.totalEvents - 1) }))
-      }
+      const { data, error: deleteError } = await supabase.from(table).delete().eq('id', id).select('id').maybeSingle()
+      if (deleteError) throw deleteError
+      if (!data) throw new Error('The item was not deleted. It may no longer exist or access was denied.')
+      setItems((prev) => prev.filter((item) => item.id !== id))
+      setStats((prev) => ({ ...prev, [statKey]: Math.max(0, prev[statKey] - 1) }))
     } catch (err) {
-      console.error('Error deleting event:', err)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleDeleteLostFound = async (id) => {
-    if (!window.confirm('Admin Confirmation: Permanently delete this lost & found post?')) return
-    setActionLoading(true)
-    try {
-      const { error } = await supabase.from('lost_found').delete().eq('id', id)
-      if (error) {
-        alert('Failed to delete listing: ' + error.message)
-      } else {
-        setLostFound((prev) => prev.filter((item) => item.id !== id))
-        setStats((prev) => ({ ...prev, totalLostFound: Math.max(0, prev.totalLostFound - 1) }))
-      }
-    } catch (err) {
-      console.error('Error deleting listing:', err)
+      alert(`Failed to delete ${label}: ${err.message || 'Please try again.'}`)
     } finally {
       setActionLoading(false)
     }
@@ -134,45 +119,30 @@ export default function Admin() {
   const handleResolveLostFound = async (id, isResolved) => {
     setActionLoading(true)
     try {
-      const { error } = await supabase
+      const { data, error: updateError } = await supabase
         .from('lost_found')
         .update({ is_resolved: !isResolved })
         .eq('id', id)
-
-      if (error) {
-        alert('Failed to update status: ' + error.message)
-      } else {
-        setLostFound((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, is_resolved: !isResolved } : item))
-        )
-      }
+        .select('id, is_resolved')
+        .maybeSingle()
+      if (updateError) throw updateError
+      if (!data) throw new Error('The listing was not updated. It may no longer exist or access was denied.')
+      setLostFound((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, is_resolved: data.is_resolved } : item))
+      )
     } catch (err) {
-      console.error('Error updating status:', err)
+      alert('Failed to update status: ' + (err.message || 'Please try again.'))
     } finally {
       setActionLoading(false)
     }
   }
 
-  const handleDeleteResource = async (id) => {
-    if (!window.confirm('Admin Confirmation: Permanently remove this study resource?')) return
-    setActionLoading(true)
-    try {
-      const { error } = await supabase.from('resources').delete().eq('id', id)
-      if (error) {
-        alert('Failed to delete resource: ' + error.message)
-      } else {
-        setResources((prev) => prev.filter((item) => item.id !== id))
-        setStats((prev) => ({ ...prev, totalResources: Math.max(0, prev.totalResources - 1) }))
-      }
-    } catch (err) {
-      console.error('Error deleting resource:', err)
-    } finally {
-      setActionLoading(false)
-    }
+  if (adminLoading) {
+    return <div className="py-20 text-center text-sm text-[var(--cm-muted)]">Checking administrator access...</div>
   }
 
   // If user is not an administrator
-  if (!loading && !isAdmin) {
+  if (!isAdmin) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 mb-4">
@@ -182,10 +152,12 @@ export default function Admin() {
           Administrator Access Required
         </h1>
         <p className="mt-2 text-sm text-[var(--cm-muted)] max-w-md mx-auto">
-          Your account is not registered in the <code>admin_users</code> registry. Admin privileges are enforced securely in Supabase PostgreSQL.
+          {adminError
+            ? `Could not verify administrator access: ${adminError}`
+            : 'Your account is not registered in the admin registry. Access is enforced by the database.'}
         </p>
         <div className="mt-6 rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-5 text-left text-xs max-w-lg mx-auto space-y-2">
-          <p className="font-bold text-[var(--cm-text)]">To assign your account as administrator:</p>
+          <p className="font-bold text-[var(--cm-text)]">Platform owner: grant administrator access only from a trusted SQL Editor.</p>
           <ol className="list-decimal list-inside space-y-1 text-[var(--cm-muted)]">
             <li>Copy your User UID from <strong>Supabase Dashboard → Authentication → Users</strong>.</li>
             <li>In Supabase <strong>SQL Editor</strong>, run:</li>
@@ -222,7 +194,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                 Platform Moderation
               </h1>
               <p className="max-w-2xl text-xs sm:text-sm text-[var(--cm-muted)] leading-relaxed">
-                Review community content across CampusConnect, CampusFind, and NoteNest. Delete inappropriate listings with full Supabase RLS security.
+                Review public content across CampusConnect, CampusFind, NoteNest, and CampusCommunity. Moderation access is enforced by the database.
               </p>
             </div>
 
@@ -250,10 +222,10 @@ ON CONFLICT (user_id) DO NOTHING;`}
               </div>
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">
-                  Registered Students
+                  Student Profiles
                 </span>
                 <p className="font-['Poppins'] text-xl font-extrabold text-[var(--cm-text)]">
-                  {stats.totalUsers}
+                  {loading || error ? '—' : stats.totalUsers ?? '—'}
                 </p>
               </div>
             </div>
@@ -269,7 +241,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                   Campus Events
                 </span>
                 <p className="font-['Poppins'] text-xl font-extrabold text-[var(--cm-text)]">
-                  {stats.totalEvents}
+                  {loading || error ? '—' : stats.totalEvents ?? '—'}
                 </p>
               </div>
             </div>
@@ -285,7 +257,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                   Lost & Found Posts
                 </span>
                 <p className="font-['Poppins'] text-xl font-extrabold text-[var(--cm-text)]">
-                  {stats.totalLostFound}
+                  {loading || error ? '—' : stats.totalLostFound ?? '—'}
                 </p>
               </div>
             </div>
@@ -301,7 +273,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                   Study Resources
                 </span>
                 <p className="font-['Poppins'] text-xl font-extrabold text-[var(--cm-text)]">
-                  {stats.totalResources}
+                  {loading || error ? '—' : stats.totalResources ?? '—'}
                 </p>
               </div>
             </div>
@@ -347,11 +319,22 @@ ON CONFLICT (user_id) DO NOTHING;`}
         </div>
 
         {/* ── 4. CONTENT LISTING ── */}
-        {loading ? (
+        {error && activeTab !== 'community' && activeTab !== 'anonymous' && (
+          <div role="alert" className="rounded-2xl border border-rose-300 bg-rose-50/90 p-4 text-xs font-bold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+            {error}
+          </div>
+        )}
+        {activeTab === 'community' ? (
+          <CommunityModeration searchQuery={searchQuery} />
+        ) : activeTab === 'market' ? (
+          <MarketModeration searchQuery={searchQuery} />
+        ) : activeTab === 'anonymous' ? (
+          <AnonymousModeration searchQuery={searchQuery} />
+        ) : loading ? (
           <div className="py-20 text-center text-xs font-semibold text-[var(--cm-muted)] flex items-center justify-center gap-2">
             <Loader2 size={18} className="animate-spin text-[var(--cm-accent)]" /> Loading records...
           </div>
-        ) : (
+        ) : error ? null : (
           <div className="overflow-hidden rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-surface)] shadow-xs">
             {/* ── EVENTS TABLE ── */}
             {activeTab === 'events' && (
@@ -401,6 +384,13 @@ ON CONFLICT (user_id) DO NOTHING;`}
                           {item.location}
                         </div>
                         <div className="col-span-2 flex items-center justify-end gap-2">
+                          <Link
+                            to="/events"
+                            state={{ selectedId: item.id }}
+                            className="text-[11px] font-bold text-[var(--cm-accent)] hover:underline"
+                          >
+                            Edit
+                          </Link>
                           {item.registration_url && (
                             <a
                               href={item.registration_url}
@@ -414,7 +404,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                           )}
                           <button
                             type="button"
-                            onClick={() => handleDeleteEvent(item.id)}
+                            onClick={() => handleDelete('events', item.id, 'event', setEvents, 'totalEvents')}
                             disabled={actionLoading}
                             className="p-1.5 rounded-lg text-[var(--cm-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                             title="Delete Event"
@@ -496,7 +486,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteLostFound(item.id)}
+                            onClick={() => handleDelete('lost_found', item.id, 'listing', setLostFound, 'totalLostFound')}
                             disabled={actionLoading}
                             className="p-1.5 rounded-lg text-[var(--cm-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                             title="Delete Post"
@@ -565,7 +555,7 @@ ON CONFLICT (user_id) DO NOTHING;`}
                         <div className="col-span-2 flex items-center justify-end">
                           <button
                             type="button"
-                            onClick={() => handleDeleteResource(item.id)}
+                            onClick={() => handleDelete('resources', item.id, 'resource', setResources, 'totalResources')}
                             disabled={actionLoading}
                             className="p-1.5 rounded-lg text-[var(--cm-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                             title="Delete Resource"

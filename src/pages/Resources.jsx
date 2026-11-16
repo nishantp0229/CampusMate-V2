@@ -364,7 +364,7 @@ function Resources() {
 
                 <div className="pt-4 mt-4 border-t border-[var(--cm-border)]/60 flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    ✓ Verified Material
+                    Student-shared material
                   </span>
                   <a
                     href={res.url}

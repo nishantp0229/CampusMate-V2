@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, CheckSquare, CalendarDays, Compass, BookOpen, UserCircle, X, ArrowUpRight, LogOut, Shield } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, CalendarDays, Compass, BookOpen, UserCircle, X, ArrowUpRight, LogOut, Shield, MessageCircle, Users, ShoppingBag, Ghost } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { requestBrowserFullscreen } from '../../lib/anonymous'
 
 const groups = [
   {
@@ -16,6 +17,10 @@ const groups = [
     links: [
       { label: 'CampusConnect', path: '/events', icon: CalendarDays },
       { label: 'CampusFind', path: '/lost-found', icon: Compass },
+      { label: 'CampusCommunity', path: '/community', icon: MessageCircle },
+      { label: 'TeamUp', path: '/teamup', icon: Users },
+      { label: 'CampusMarket', path: '/market', icon: ShoppingBag },
+      { label: 'CampusAnonymous', path: '/anonymous', icon: Ghost },
     ],
   },
   {
@@ -41,7 +46,17 @@ function Sidebar({ isOpen, isMobile, onClose, closeButtonRef }) {
           <div className="workspace-nav-group" key={group.label}>
             <p>{group.label}</p>
             {group.links.map(({ label, path, icon: Icon }) => (
-              <NavLink key={path} to={path} onClick={onClose} className={({ isActive }) => `workspace-nav-link ${isActive ? 'is-active' : ''}`}>
+              <NavLink
+                key={path}
+                to={path}
+                onClick={() => {
+                  if (path === '/anonymous') {
+                    requestBrowserFullscreen()
+                  }
+                  onClose()
+                }}
+                className={({ isActive }) => `workspace-nav-link ${isActive ? 'is-active' : ''}`}
+              >
                 <Icon size={18} strokeWidth={1.7} /><span>{label}</span>
               </NavLink>
             ))}

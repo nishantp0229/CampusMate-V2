@@ -1,7 +1,7 @@
 // src/pages/Planner.jsx — Interactive Academic Planner connected to Supabase
 // Includes: Course Tasks/Assignments, Subject-Wise Editable Attendance, and Weekly Timetable
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Plus,
@@ -23,6 +23,7 @@ import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { attendancePercentage, isAttendanceSafe } from '../lib/attendance'
 
 const DAYS_OF_WEEK = [
   { day: 'Mon', label: 'Monday' },
@@ -80,6 +81,7 @@ function Planner() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [taskActionError, setTaskActionError] = useState('')
   const [filter, setFilter] = useState('all')
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(Boolean(state?.openAdd))
   const [taskForm, setTaskForm] = useState(INITIAL_TASK_FORM)
@@ -94,9 +96,11 @@ function Planner() {
   const [attendanceForm, setAttendanceForm] = useState(INITIAL_ATTENDANCE_FORM)
   const [attendanceError, setAttendanceError] = useState('')
   const [submittingAttendance, setSubmittingAttendance] = useState(false)
+  const [loggingAttendance, setLoggingAttendance] = useState({})
+  const pendingAttendanceRef = useRef(new Set())
 
   // ─── TIMETABLE STATE ───────────────────────────────────────
-  const [selectedDay, setSelectedDay] = useState(todayShort === 'Sun' ? 'Mon' : todayShort)
+  const [selectedDay, setSelectedDay] = useState(todayShort)
   const [timetable, setTimetable] = useState([])
   const [timetableLoading, setTimetableLoading] = useState(true)
   const [timetableDbNotice, setTimetableDbNotice] = useState(null)
@@ -199,7 +203,7 @@ function Planner() {
         if (attErr) {
           console.warn('[CampusMate] Attendance fetch notice:', attErr.message)
           setAttendanceDbNotice(
-            `Attendance table not found in Supabase (${attErr.message}). Execute database/migration_admin_academic.sql in your Supabase SQL Editor to enable attendance sync.`
+            `Could not load attendance: ${attErr.message}. Ask your administrator to check database setup and access.`
           )
           setAttendance([])
         } else {
@@ -251,7 +255,7 @@ function Planner() {
         if (ttErr) {
           console.warn('[CampusMate] Timetable fetch notice:', ttErr.message)
           setTimetableDbNotice(
-            `Timetable table not found in Supabase (${ttErr.message}). Execute database/migration_admin_academic.sql in your Supabase SQL Editor to enable timetable sync.`
+            `Could not load your timetable: ${ttErr.message}. Ask your administrator to check database setup and access.`
           )
           setTimetable([])
         } else {
@@ -282,17 +286,22 @@ function Planner() {
     if (!task || !supabase || !user?.id) return
 
     const newStatus = task.status === 'completed' ? 'pending' : 'completed'
+    setTaskActionError('')
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)))
 
-    const { error: updateErr } = await supabase
-      .from('tasks')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq('id', taskId)
-      .eq('user_id', user.id)
-
-    if (updateErr) {
-      console.error('[CampusMate] Error updating task status:', updateErr.message)
+    try {
+      const { data, error: updateErr } = await supabase
+        .from('tasks')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', taskId)
+        .eq('user_id', user.id)
+        .select('id')
+        .maybeSingle()
+      if (updateErr) throw updateErr
+      if (!data) throw new Error('The task was not updated. It may no longer exist or access was denied.')
+    } catch (err) {
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: task.status } : t)))
+      setTaskActionError(err.message || 'Could not update task status.')
     }
   }
 
@@ -308,7 +317,7 @@ function Planner() {
         subject: taskForm.subject.trim() || 'General Coursework',
         priority: taskForm.priority,
         status: 'pending',
-        due_date: taskForm.dueDate ? new Date(taskForm.dueDate).toISOString() : new Date().toISOString(),
+        due_date: taskForm.dueDate ? new Date(`${taskForm.dueDate}T12:00:00`).toISOString() : null,
       }
 
       const { data, error: insertErr } = await supabase
@@ -340,6 +349,7 @@ function Planner() {
       }
     } catch (err) {
       console.error('[CampusMate] Exception creating task:', err)
+      alert('Could not save task. Please try again.')
     } finally {
       setSubmittingTask(false)
     }
@@ -403,7 +413,7 @@ function Planner() {
           .single()
 
         if (updateErr) {
-          setAttendanceError(`Database error: ${updateErr.message}. Ensure database/migration_admin_academic.sql was executed in Supabase.`)
+          setAttendanceError(`Could not update attendance: ${updateErr.message}`)
           return
         }
 
@@ -416,7 +426,7 @@ function Planner() {
           .single()
 
         if (insertErr) {
-          setAttendanceError(`Database error: ${insertErr.message}. Ensure database/migration_admin_academic.sql was executed in Supabase.`)
+          setAttendanceError(`Could not add attendance: ${insertErr.message}`)
           return
         }
 
@@ -436,32 +446,40 @@ function Planner() {
 
   const handleQuickLog = async (id, type) => {
     const item = attendance.find((a) => a.id === id)
-    if (!item || !user?.id || !supabase) return
+    if (!item || !user?.id || !supabase || pendingAttendanceRef.current.has(id)) return
 
-    let nextTotal = item.total_classes + 1
-    let nextAttended = type === 'attended' ? item.attended_classes + 1 : item.attended_classes
+    pendingAttendanceRef.current.add(id)
+    setLoggingAttendance((prev) => ({ ...prev, [id]: true }))
+    try {
+      const { data, error: logErr } = await supabase
+        .from('attendance')
+        .update({
+          total_classes: item.total_classes + 1,
+          attended_classes: item.attended_classes + (type === 'attended' ? 1 : 0),
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .eq('total_classes', item.total_classes)
+        .eq('attended_classes', item.attended_classes)
+        .select()
+        .maybeSingle()
 
-    // Optimistic UI update
-    setAttendance((prev) =>
-      prev.map((a) =>
-        a.id === id ? { ...a, total_classes: nextTotal, attended_classes: nextAttended } : a
-      )
-    )
-
-    const { error: logErr } = await supabase
-      .from('attendance')
-      .update({
-        total_classes: nextTotal,
-        attended_classes: nextAttended,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .eq('user_id', user.id)
-
-    if (logErr) {
-      alert(`Database update failed: ${logErr.message}. Please verify the attendance table exists in Supabase.`)
-      // Revert on failure
-      setAttendance((prev) => prev.map((a) => (a.id === id ? item : a)))
+      if (logErr) throw logErr
+      if (!data) {
+        const { data: latest, error: fetchErr } = await supabase
+          .from('attendance').select('*').eq('id', id).eq('user_id', user.id).maybeSingle()
+        if (fetchErr) throw fetchErr
+        setAttendance((prev) => latest
+          ? prev.map((a) => (a.id === id ? latest : a))
+          : prev.filter((a) => a.id !== id))
+        throw new Error('Attendance changed or is no longer available. The list was refreshed; please try again.')
+      }
+      setAttendance((prev) => prev.map((a) => (a.id === id ? data : a)))
+    } catch (err) {
+      alert(`Could not log attendance: ${err.message || 'Please try again.'}`)
+    } finally {
+      pendingAttendanceRef.current.delete(id)
+      setLoggingAttendance((prev) => ({ ...prev, [id]: false }))
     }
   }
 
@@ -469,14 +487,20 @@ function Planner() {
     if (!window.confirm('Are you sure you want to remove this subject from your attendance tracker?')) return
     if (!user?.id || !supabase) return
 
-    const { error: delErr } = await supabase
+    const { data, error: delErr } = await supabase
       .from('attendance')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id)
+      .select('id')
+      .maybeSingle()
 
     if (delErr) {
       alert(`Failed to delete subject: ${delErr.message}. Please verify the attendance table exists in Supabase.`)
+      return
+    }
+    if (!data) {
+      alert('The subject was not deleted. It may no longer exist or access was denied.')
       return
     }
 
@@ -552,7 +576,7 @@ function Planner() {
           .single()
 
         if (updateErr) {
-          setTimetableError(`Database error: ${updateErr.message}. Ensure database/migration_admin_academic.sql was executed in Supabase.`)
+          setTimetableError(`Could not update class: ${updateErr.message}`)
           return
         }
 
@@ -565,7 +589,7 @@ function Planner() {
           .single()
 
         if (insertErr) {
-          setTimetableError(`Database error: ${insertErr.message}. Ensure database/migration_admin_academic.sql was executed in Supabase.`)
+          setTimetableError(`Could not add class: ${insertErr.message}`)
           return
         }
 
@@ -573,7 +597,8 @@ function Planner() {
       }
 
       setIsTimetableModalOpen(false)
-      setTimetableForm({ ...INITIAL_TIMETABLE_FORM, day: selectedDay })
+      setSelectedDay(day)
+      setTimetableForm({ ...INITIAL_TIMETABLE_FORM, day })
       setTimetableDbNotice(null)
     } catch (err) {
       console.error('[CampusMate] Error saving timetable:', err)
@@ -587,14 +612,20 @@ function Planner() {
     if (!window.confirm('Remove this class from your timetable?')) return
     if (!user?.id || !supabase) return
 
-    const { error: delErr } = await supabase
+    const { data, error: delErr } = await supabase
       .from('timetable')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id)
+      .select('id')
+      .maybeSingle()
 
     if (delErr) {
       alert(`Failed to delete class: ${delErr.message}. Please verify the timetable table exists in Supabase.`)
+      return
+    }
+    if (!data) {
+      alert('The class was not deleted. It may no longer exist or access was denied.')
       return
     }
 
@@ -611,7 +642,7 @@ function Planner() {
       if (filter === 'high') return task.priority === 'high'
       return true
     })
-    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+    .sort((a, b) => (a.dueDate ? new Date(a.dueDate).getTime() : Infinity) - (b.dueDate ? new Date(b.dueDate).getTime() : Infinity))
 
   const pendingCount = tasks.filter((t) => t.status === 'pending').length
   const completedCount = tasks.filter((t) => t.status === 'completed').length
@@ -620,7 +651,8 @@ function Planner() {
   // Overall Attendance Calculation (Attended / Total * 100)
   const totalConducted = attendance.reduce((acc, curr) => acc + (Number(curr.total_classes) || 0), 0)
   const totalAttended = attendance.reduce((acc, curr) => acc + (Number(curr.attended_classes) || 0), 0)
-  const overallAttendanceRate = totalConducted > 0 ? Math.round((totalAttended / totalConducted) * 100) : 0
+  const overallAttendanceRate = attendancePercentage(totalAttended, totalConducted)
+  const overallAttendanceSafe = isAttendanceSafe(totalAttended, totalConducted)
 
   // Filtered Timetable for Selected Day
   const dayClasses = timetable
@@ -669,13 +701,13 @@ function Planner() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-8">
             <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-4 shadow-2xs">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">
-                Target CGPA
+                Weekly Classes
               </span>
               <p className="font-['Poppins'] text-2xl font-extrabold text-[var(--cm-accent)] mt-1">
-                8.6 / 10
+                {timetableDbNotice ? '--' : timetable.length}
               </p>
               <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Academic Target
+                Scheduled in your timetable
               </span>
             </div>
 
@@ -699,7 +731,7 @@ function Planner() {
                 className={`font-['Poppins'] text-2xl font-extrabold mt-1 ${
                   totalConducted === 0
                     ? 'text-[var(--cm-muted)]'
-                    : overallAttendanceRate >= 75
+                    : overallAttendanceSafe
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-rose-600 dark:text-rose-400'
                 }`}
@@ -709,15 +741,15 @@ function Planner() {
               <span className="text-[10px] font-semibold text-[var(--cm-muted)]">
                 {totalConducted === 0
                   ? 'Threshold: ≥ 75%'
-                  : overallAttendanceRate >= 75
-                  ? `✓ Exam Safe (${totalAttended}/${totalConducted})`
+                  : overallAttendanceSafe
+                  ? `✓ At or above 75% (${totalAttended}/${totalConducted})`
                   : `⚠️ Shortage Risk (${totalAttended}/${totalConducted})`}
               </span>
             </div>
 
             <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-4 shadow-2xs">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cm-muted)]">
-                Weekly Progress
+                Task Progress
               </span>
               <p className="font-['Poppins'] text-2xl font-extrabold text-[var(--cm-text)] mt-1">
                 {weeklyPercent}%
@@ -732,9 +764,9 @@ function Planner() {
 
       <div className="mx-auto max-w-7xl space-y-10 px-4 sm:px-6 lg:px-8">
         {/* Error notification if any */}
-        {error && (
+        {(error || taskActionError) && (
           <div className="flex items-center gap-2 rounded-2xl border border-rose-300 bg-rose-50/90 p-4 text-xs font-bold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 shadow-xs">
-            <AlertCircle size={16} /> {error}
+            <AlertCircle size={16} /> {error || taskActionError}
           </div>
         )}
 
@@ -749,7 +781,7 @@ function Planner() {
                 Subject-Wise Attendance Tracker 📊
               </h2>
               <p className="text-xs sm:text-sm text-[var(--cm-muted)]">
-                Log attended and conducted lectures to safeguard your minimum 75% university requirement.
+                Log attended and conducted lectures and compare your attendance with a 75% reference.
               </p>
             </div>
 
@@ -779,16 +811,18 @@ function Planner() {
               <div className="flex items-center gap-3">
                 <div
                   className={`flex h-11 w-11 items-center justify-center rounded-xl font-['Poppins'] font-extrabold text-sm ${
-                    overallAttendanceRate >= 75
+                      totalConducted === 0
+                        ? 'bg-[var(--cm-secondary)] text-[var(--cm-muted)]'
+                        : overallAttendanceSafe
                       ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                       : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
                   }`}
                 >
-                  {overallAttendanceRate}%
+                  {totalConducted === 0 ? '--%' : `${overallAttendanceRate}%`}
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-[var(--cm-text)]">
-                    Overall Semester Standing: {overallAttendanceRate >= 75 ? 'Safe for Final Exams' : 'Attendance Shortage Alert'}
+                    Overall Attendance: {totalConducted === 0 ? 'No classes recorded' : overallAttendanceSafe ? 'At or above 75%' : 'Below 75%'}
                   </h4>
                   <p className="text-[11px] text-[var(--cm-muted)]">
                     Total: {totalAttended} attended out of {totalConducted} classes conducted across {attendance.length} subjects
@@ -800,9 +834,9 @@ function Planner() {
                 <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cm-secondary)]">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      overallAttendanceRate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'
+                      overallAttendanceSafe ? 'bg-emerald-500' : 'bg-rose-500'
                     }`}
-                    style={{ width: `${Math.min(100, overallAttendanceRate)}%` }}
+                    style={{ width: `${Math.min(100, overallAttendanceRate ?? 0)}%` }}
                   />
                 </div>
               </div>
@@ -815,7 +849,7 @@ function Planner() {
               <Loader2 size={16} className="animate-spin text-[var(--cm-accent)]" />
               Loading your subjects from database...
             </div>
-          ) : attendance.length === 0 ? (
+          ) : attendanceDbNotice ? null : attendance.length === 0 ? (
             <EmptyState
               icon={TrendingUp}
               title="No subjects added yet"
@@ -830,18 +864,18 @@ function Planner() {
               {attendance.map((item) => {
                 const total = Number(item.total_classes) || 0
                 const attended = Number(item.attended_classes) || 0
-                const rate = total > 0 ? Math.round((attended / total) * 100) : 0
-                const isSafe = rate >= 75
+                const rate = attendancePercentage(attended, total)
+                const isSafe = isAttendanceSafe(attended, total)
 
                 // Safe margin calculation
                 let advice = ''
                 if (total === 0) {
                   advice = 'No classes conducted yet'
                 } else if (isSafe) {
-                  const canBunk = Math.floor(attended / 0.75 - total)
+                  const canBunk = Math.floor((attended * 4 - total * 3) / 3)
                   advice = canBunk > 0 ? `Can miss ${canBunk} class${canBunk > 1 ? 'es' : ''} safely` : 'On the threshold (cannot miss)'
                 } else {
-                  const needAttend = Math.max(1, Math.ceil((0.75 * total - attended) / 0.25))
+                  const needAttend = Math.max(1, total * 3 - attended * 4)
                   advice = `Must attend next ${needAttend} class${needAttend > 1 ? 'es' : ''}`
                 }
 
@@ -857,16 +891,18 @@ function Planner() {
                         </h3>
                         <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition">
                           <button
-                            type="button"
-                            onClick={() => handleOpenAttendanceModal(item)}
+                             type="button"
+                             onClick={() => handleOpenAttendanceModal(item)}
+                             disabled={loggingAttendance[item.id]}
                             className="p-1 rounded text-[var(--cm-muted)] hover:text-[var(--cm-accent)] hover:bg-[var(--cm-secondary)] transition cursor-pointer"
                             title="Edit numbers"
                           >
                             <Edit2 size={13} />
                           </button>
                           <button
-                            type="button"
-                            onClick={() => handleDeleteAttendance(item.id)}
+                             type="button"
+                             onClick={() => handleDeleteAttendance(item.id)}
+                             disabled={loggingAttendance[item.id]}
                             className="p-1 rounded text-[var(--cm-muted)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                             title="Delete subject"
                           >
@@ -882,7 +918,7 @@ function Planner() {
                               total === 0 ? 'text-[var(--cm-muted)]' : isSafe ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                             }`}
                           >
-                            {total === 0 ? '0%' : `${rate}%`}
+                            {total === 0 ? '--%' : `${rate}%`}
                           </span>
                           <span className="text-xs text-[var(--cm-muted)] font-medium">
                             ({attended} / {total} classes)
@@ -907,7 +943,7 @@ function Planner() {
                           className={`h-full transition-all duration-300 ${
                             total === 0 ? 'bg-transparent' : isSafe ? 'bg-emerald-500' : 'bg-rose-500'
                           }`}
-                          style={{ width: `${Math.min(100, rate)}%` }}
+                          style={{ width: `${Math.min(100, rate ?? 0)}%` }}
                         />
                       </div>
 
@@ -919,16 +955,18 @@ function Planner() {
                     {/* Quick increment buttons */}
                     <div className="mt-4 pt-3 border-t border-[var(--cm-border)]/70 flex items-center gap-2">
                       <button
-                        type="button"
-                        onClick={() => handleQuickLog(item.id, 'attended')}
+                         type="button"
+                         onClick={() => handleQuickLog(item.id, 'attended')}
+                         disabled={loggingAttendance[item.id]}
                         className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 py-1.5 text-[11px] font-bold hover:bg-emerald-100 transition cursor-pointer"
                         title="Mark +1 Attended Class"
                       >
                         <Check size={12} /> +1 Attended
                       </button>
                       <button
-                        type="button"
-                        onClick={() => handleQuickLog(item.id, 'missed')}
+                         type="button"
+                         onClick={() => handleQuickLog(item.id, 'missed')}
+                         disabled={loggingAttendance[item.id]}
                         className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 py-1.5 text-[11px] font-bold hover:bg-rose-100 transition cursor-pointer"
                         title="Mark +1 Missed Class"
                       >
@@ -1031,7 +1069,7 @@ function Planner() {
                 <Loader2 size={16} className="animate-spin text-[var(--cm-accent)]" />
                 Loading schedule...
               </div>
-            ) : dayClasses.length === 0 ? (
+            ) : timetableDbNotice ? null : dayClasses.length === 0 ? (
               <div className="py-10 text-center rounded-2xl border border-dashed border-[var(--cm-border)] bg-[var(--cm-bg)]/40 p-8">
                 <p className="text-xs font-bold text-[var(--cm-text)]">
                   No lectures scheduled for {DAYS_OF_WEEK.find((d) => d.day === selectedDay)?.label}.
@@ -1158,7 +1196,7 @@ function Planner() {
               <Loader2 size={18} className="animate-spin text-[var(--cm-accent)]" />
               Loading your assignments from database...
             </div>
-          ) : filteredTasks.length === 0 ? (
+          ) : error ? null : filteredTasks.length === 0 ? (
             <EmptyState
               icon={BookOpen}
               title={tasks.length === 0 ? 'No tasks or assignments yet' : 'No tasks match this filter'}
@@ -1389,9 +1427,9 @@ function Planner() {
           <div className="rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3 text-xs">
             <span className="text-[var(--cm-muted)] font-medium">Calculated Percentage: </span>
             <span className="font-['Poppins'] font-bold text-[var(--cm-text)]">
-              {attendanceForm.total_classes > 0
-                ? `${Math.round((attendanceForm.attended_classes / attendanceForm.total_classes) * 100)}%`
-                : '0%'}
+              {attendancePercentage(attendanceForm.attended_classes, attendanceForm.total_classes) === null
+                ? '--%'
+                : `${attendancePercentage(attendanceForm.attended_classes, attendanceForm.total_classes)}%`}
             </span>
           </div>
 

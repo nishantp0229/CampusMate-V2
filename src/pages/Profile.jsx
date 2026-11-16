@@ -1,6 +1,7 @@
 // src/pages/Profile.jsx — Student Passport & Profile connected to real Supabase data
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Moon,
   Sun,
@@ -10,6 +11,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  KeyRound,
+  ShieldCheck,
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -32,6 +35,7 @@ function Profile() {
     studentDepartment,
     studentSemester,
     updateProfile,
+    updatePassword,
     signOut,
   } = useAuth()
 
@@ -39,13 +43,19 @@ function Profile() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [formError, setFormError] = useState(null)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+
+  // Security & Password state
+  const [showPasswordSection, setShowPasswordSection] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' })
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [passwordError, setPasswordError] = useState(null)
 
   const [form, setForm] = useState({
     full_name: profile?.full_name || studentName || '',
     college: profile?.college || '',
     department: profile?.department || '',
-    semester: profile?.semester ?? 1,
+    semester: profile?.semester ?? '',
   })
 
   const handleStartEdit = () => {
@@ -54,7 +64,7 @@ function Profile() {
       full_name: profile?.full_name || studentName || '',
       college: profile?.college || '',
       department: profile?.department || '',
-      semester: profile?.semester ?? 1,
+      semester: profile?.semester ?? '',
     })
     setEditing(true)
   }
@@ -66,7 +76,7 @@ function Profile() {
       full_name: profile?.full_name || studentName || '',
       college: profile?.college || '',
       department: profile?.department || '',
-      semester: profile?.semester ?? 1,
+      semester: profile?.semester ?? '',
     })
   }
 
@@ -80,8 +90,8 @@ function Profile() {
       return
     }
 
-    const semNum = Number(form.semester)
-    if (isNaN(semNum) || semNum < 1 || semNum > 10) {
+    const semNum = form.semester === '' ? null : Number(form.semester)
+    if (semNum !== null && (!Number.isInteger(semNum) || semNum < 1 || semNum > 10)) {
       setFormError('Semester must be between 1 and 10.')
       return
     }
@@ -102,6 +112,36 @@ function Profile() {
       setFormError(err.message || 'Failed to save student profile.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(false)
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.')
+      return
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Passwords do not match. Please verify both entries.')
+      return
+    }
+
+    try {
+      setPasswordSaving(true)
+      await updatePassword(passwordForm.newPassword)
+      setPasswordSuccess(true)
+      setPasswordForm({ newPassword: '', confirmPassword: '' })
+      setShowPasswordSection(false)
+      setTimeout(() => setPasswordSuccess(false), 5000)
+    } catch (err) {
+      console.error('[CampusMate] Password update error:', err)
+      setPasswordError(err.message || 'Failed to update account password.')
+    } finally {
+      setPasswordSaving(false)
     }
   }
 
@@ -167,7 +207,7 @@ function Profile() {
               </div>
               <div>
                 <span className="block text-[10px] font-extrabold uppercase tracking-widest text-[var(--cm-accent)]">
-                  Student Passport · University Verified
+                  Student Passport · CampusMate
                 </span>
                 <span className="block font-['Poppins'] text-base font-extrabold text-[var(--cm-text)]">
                   {studentCollege}
@@ -176,7 +216,7 @@ function Profile() {
             </div>
 
             <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-3.5 py-1 text-xs font-extrabold">
-              Active Student · Semester {studentSemester}
+              {studentSemester ? `Semester ${studentSemester}` : 'Semester not set'}
             </span>
           </div>
 
@@ -192,7 +232,7 @@ function Profile() {
               </h2>
               <p className="text-xs text-[var(--cm-muted)] font-medium mt-0.5">{studentEmail}</p>
               <span className="mt-3 rounded-lg bg-[var(--cm-secondary)] px-3 py-1 text-xs font-bold text-[var(--cm-text)]">
-                Student ID: {user?.id ? user.id.slice(0, 8).toUpperCase() : 'ACTIVE'}
+                Account ID: {user?.id ? user.id.slice(0, 8).toUpperCase() : 'Unavailable'}
               </span>
             </div>
 
@@ -205,23 +245,25 @@ function Profile() {
                 </div>
                 <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Term Status</span>
-                  <p className="mt-1 font-bold text-xs text-[var(--cm-text)]">Semester {studentSemester}</p>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-text)]">
+                    {studentSemester ? `Semester ${studentSemester}` : 'Not provided'}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Cumulative CGPA</span>
-                  <p className="mt-1 font-bold text-xs text-emerald-600 dark:text-emerald-400">8.6 / 10.0</p>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-muted)]">Not available</p>
                 </div>
                 <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Completed Credits</span>
-                  <p className="mt-1 font-bold text-xs text-[var(--cm-text)]">{studentSemester * 20} / 160</p>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-muted)]">Not available</p>
                 </div>
                 <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Attendance Meter</span>
-                  <p className="mt-1 font-bold text-xs text-emerald-600 dark:text-emerald-400">85% Safe</p>
+                  <Link to="/planner" className="mt-1 block text-xs font-bold text-[var(--cm-accent)] hover:underline">View in Planner</Link>
                 </div>
                 <div className="rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-3.5 shadow-2xs">
                   <span className="text-[10px] font-bold uppercase text-[var(--cm-muted)]">Society Role</span>
-                  <p className="mt-1 font-bold text-xs text-[var(--cm-accent)]">Student Member</p>
+                  <p className="mt-1 font-bold text-xs text-[var(--cm-muted)]">Not provided</p>
                 </div>
               </div>
             </div>
@@ -236,7 +278,7 @@ function Profile() {
             </h3>
             <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={LABEL_CLASS}>Full Legal Name</label>
+                  <label className={LABEL_CLASS}>Full Name</label>
                 <input
                   type="text"
                   required
@@ -248,13 +290,13 @@ function Profile() {
               </div>
 
               <div>
-                <label className={LABEL_CLASS}>Institutional Email (Account)</label>
+                  <label className={LABEL_CLASS}>Account Email</label>
                 <input
                   type="email"
                   disabled
                   value={studentEmail}
                   className={`${INPUT_CLASS} opacity-60 cursor-not-allowed`}
-                  title="Institutional email is managed by your account authentication."
+                  title="Your email is managed by your account authentication."
                 />
               </div>
 
@@ -284,9 +326,10 @@ function Profile() {
                 <label className={LABEL_CLASS}>Current Semester</label>
                 <select
                   value={form.semester}
-                  onChange={(e) => setForm({ ...form, semester: Number(e.target.value) })}
+                  onChange={(e) => setForm({ ...form, semester: e.target.value })}
                   className={INPUT_CLASS}
                 >
+                  <option value="">Not provided</option>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
                     <option key={s} value={s}>Semester {s}</option>
                   ))}
@@ -314,7 +357,105 @@ function Profile() {
           </div>
         )}
 
-        {/* ── 4. PREFERENCES & SETTINGS ── */}
+        {/* ── 4. SECURITY & AUTHENTICATION ── */}
+        <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--cm-accent-tint)] text-[var(--cm-accent)]">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 className="font-['Poppins'] text-base sm:text-lg font-extrabold text-[var(--cm-text)]">
+                  Account Security
+                </h3>
+                <p className="text-xs text-[var(--cm-muted)]">
+                  Manage your account password and authentication credentials
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowPasswordSection((prev) => !prev)
+                setPasswordError(null)
+                setPasswordForm({ newPassword: '', confirmPassword: '' })
+              }}
+              className="inline-flex items-center gap-2 self-start sm:self-auto rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-3.5 py-2 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] transition cursor-pointer shadow-2xs"
+            >
+              <KeyRound size={14} className="text-[var(--cm-accent)]" />
+              {showPasswordSection ? 'Cancel' : 'Change Password'}
+            </button>
+          </div>
+
+          {/* Password Success Feedback */}
+          {passwordSuccess && (
+            <div className="flex items-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50/90 p-3.5 text-xs font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 shadow-xs">
+              <CheckCircle2 size={15} />
+              Password updated successfully! Next time you sign in, use your new credentials.
+            </div>
+          )}
+
+          {/* Password Error Feedback */}
+          {passwordError && (
+            <div className="flex items-center gap-2 rounded-2xl border border-rose-300 bg-rose-50/90 p-3.5 text-xs font-bold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 shadow-xs" role="alert">
+              <AlertCircle size={15} />
+              {passwordError}
+            </div>
+          )}
+
+          {/* Expandable Change Password Form */}
+          {showPasswordSection && (
+            <form onSubmit={handleUpdatePassword} className="mt-4 pt-4 border-t border-[var(--cm-border)]/60 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL_CLASS}>New Password (min 6 characters)</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  placeholder="••••••••••••"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  placeholder="••••••••••••"
+                  className={INPUT_CLASS}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 sm:col-span-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordSection(false)}
+                  disabled={passwordSaving}
+                  className="rounded-xl border border-[var(--cm-border)] px-4 py-2 text-xs font-bold text-[var(--cm-muted)] hover:bg-[var(--cm-secondary)] transition cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordSaving}
+                  className="workspace-primary-button disabled:opacity-50 cursor-pointer inline-flex items-center gap-2"
+                >
+                  {passwordSaving && <Loader2 size={13} className="animate-spin" />}
+                  {passwordSaving ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* ── 5. PREFERENCES & SETTINGS ── */}
         <div className="rounded-3xl border border-[var(--cm-border)] bg-[var(--cm-surface)] p-6 sm:p-8 shadow-xs space-y-4">
           <h3 className="font-['Poppins'] text-lg font-extrabold text-[var(--cm-text)]">
             Preferences & Appearance
@@ -341,18 +482,14 @@ function Profile() {
             <div className="py-4 flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-[var(--cm-text)]">Assignment & Hackathon Notices</p>
-                <p className="text-[11px] text-[var(--cm-muted)]">Receive notifications for upcoming lab evaluations</p>
+                <p className="text-[11px] text-[var(--cm-muted)]">Notification delivery is not available yet.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer shadow-2xs ${
-                  notificationsEnabled
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[var(--cm-secondary)] text-[var(--cm-muted)]'
-                }`}
+                disabled
+                className="rounded-xl bg-[var(--cm-secondary)] px-4 py-2 text-xs font-bold text-[var(--cm-muted)] shadow-2xs cursor-not-allowed"
               >
-                {notificationsEnabled ? 'Active ✓' : 'Muted'}
+                Not available
               </button>
             </div>
 

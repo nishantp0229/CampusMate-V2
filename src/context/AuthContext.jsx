@@ -12,17 +12,26 @@ export function AuthProvider({ children }) {
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileError, setProfileError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [adminError, setAdminError] = useState(null)
 
   // Cache refs to prevent redundant fetches and infinite loops
   const profileUserIdRef = useRef(null)
-  const isFetchingProfileRef = useRef(false)
+  const isFetchingProfileRef = useRef(null)
+  const profileRequestRef = useRef(0)
+  const authUserIdRef = useRef(null)
+  const adminRequestRef = useRef(0)
 
   // ── 0. Check admin status from public.admin_users table ────
   const checkAdminStatus = useCallback(async (userId) => {
+    const requestId = ++adminRequestRef.current
+    setIsAdmin(false)
+    setAdminError(null)
     if (!supabase || !userId) {
-      setIsAdmin(false)
+      setAdminLoading(false)
       return
     }
+    setAdminLoading(true)
     try {
       const { data, error } = await supabase
         .from('admin_users')
@@ -30,13 +39,15 @@ export function AuthProvider({ children }) {
         .eq('user_id', userId)
         .maybeSingle()
 
-      if (!error && data) {
-        setIsAdmin(true)
-      } else {
-        setIsAdmin(false)
+      if (requestId !== adminRequestRef.current) return
+      if (error) throw error
+      setIsAdmin(Boolean(data))
+    } catch (error) {
+      if (requestId === adminRequestRef.current) {
+        setAdminError(error.message || 'Could not verify administrator access.')
       }
-    } catch {
-      setIsAdmin(false)
+    } finally {
+      if (requestId === adminRequestRef.current) setAdminLoading(false)
     }
   }, [])
 
@@ -54,11 +65,13 @@ export function AuthProvider({ children }) {
     }
 
     // Skip if another fetch is currently in-flight
-    if (isFetchingProfileRef.current) {
+    if (!force && isFetchingProfileRef.current === userId) {
       return null
     }
 
-    isFetchingProfileRef.current = true
+    isFetchingProfileRef.current = userId
+    const requestId = ++profileRequestRef.current
+    const isCurrent = () => requestId === profileRequestRef.current && authUserIdRef.current === userId
     try {
       setProfileLoading(true)
       setProfileError(null)
@@ -69,6 +82,7 @@ export function AuthProvider({ children }) {
         .eq('id', userId)
         .maybeSingle()
 
+      if (!isCurrent()) return null
       if (error) {
         console.error('[CampusMate] Error fetching profile:', error.message)
         setProfileError(error.message)
@@ -96,8 +110,10 @@ export function AuthProvider({ children }) {
         .select()
         .maybeSingle()
 
+      if (!isCurrent()) return null
       if (insertError) {
         console.warn('[CampusMate] Could not auto-create profile:', insertError.message)
+        setProfileError(insertError.message)
       } else if (created) {
         profileUserIdRef.current = userId
         setProfile(created)
@@ -106,12 +122,16 @@ export function AuthProvider({ children }) {
 
       return null
     } catch (err) {
-      console.error('[CampusMate] Exception fetching profile:', err)
-      setProfileError(err.message || 'Failed to load profile')
+      if (isCurrent()) {
+        console.error('[CampusMate] Exception fetching profile:', err)
+        setProfileError(err.message || 'Failed to load profile')
+      }
       return null
     } finally {
-      isFetchingProfileRef.current = false
-      setProfileLoading(false)
+      if (isCurrent()) {
+        isFetchingProfileRef.current = null
+        setProfileLoading(false)
+      }
     }
   }, [])
 
@@ -120,24 +140,39 @@ export function AuthProvider({ children }) {
     if (!supabase) return
 
     let isMounted = true
+    let authEventReceived = false
+
+    const loadUser = (currentUser) => {
+      const userId = currentUser?.id ?? null
+      if (authUserIdRef.current !== userId) {
+        authUserIdRef.current = userId
+        profileRequestRef.current += 1
+        isFetchingProfileRef.current = null
+        profileUserIdRef.current = null
+        setProfile(null)
+        setProfileLoading(false)
+        setProfileError(null)
+      }
+      if (currentUser) {
+        fetchProfile(currentUser.id, currentUser.user_metadata)
+        checkAdminStatus(currentUser.id)
+      } else {
+        checkAdminStatus(null)
+      }
+    }
 
     // Check active session on initial load
     supabase.auth
       .getSession()
       .then(({ data: { session: currentSession }, error }) => {
-        if (!isMounted) return
+        if (!isMounted || authEventReceived) return
         if (error) {
           console.error('[CampusMate] Error getting initial session:', error.message)
         }
         setSession(currentSession)
         const currentUser = currentSession?.user ?? null
         setUser(currentUser)
-        if (currentUser) {
-          fetchProfile(currentUser.id, currentUser.user_metadata)
-          checkAdminStatus(currentUser.id)
-        } else {
-          setIsAdmin(false)
-        }
+        loadUser(currentUser)
       })
       .catch((err) => {
         console.error('[CampusMate] Session check exception:', err)
@@ -157,25 +192,21 @@ export function AuthProvider({ children }) {
         setSession(currentSession)
         return
       }
+      authEventReceived = true
 
       setSession(currentSession)
       const currentUser = currentSession?.user ?? null
       setUser(currentUser)
       setLoading(false)
 
-      if (currentUser) {
-        fetchProfile(currentUser.id, currentUser.user_metadata)
-        checkAdminStatus(currentUser.id)
-      } else {
-        profileUserIdRef.current = null
-        setProfile(null)
-        setProfileError(null)
-        setIsAdmin(false)
-      }
+      loadUser(currentUser)
     })
 
     return () => {
       isMounted = false
+      adminRequestRef.current += 1
+      profileRequestRef.current += 1
+      isFetchingProfileRef.current = null
       subscription?.unsubscribe()
     }
   }, [fetchProfile, checkAdminStatus])
@@ -185,6 +216,7 @@ export function AuthProvider({ children }) {
     if (!supabase) throw new Error('Supabase client is not configured.')
     if (!user) throw new Error('No authenticated user found.')
 
+    const userId = user.id
     setProfileError(null)
 
     const payload = {
@@ -195,18 +227,18 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase
       .from('profiles')
       .update(payload)
-      .eq('id', user.id)
+      .eq('id', userId)
       .select()
       .single()
 
     if (error) {
       console.error('[CampusMate] Error updating profile:', error.message)
-      setProfileError(error.message)
+      if (authUserIdRef.current === userId) setProfileError(error.message)
       throw error
     }
 
-    if (data) {
-      profileUserIdRef.current = user.id
+    if (data && authUserIdRef.current === userId) {
+      profileUserIdRef.current = userId
       setProfile(data)
     }
     return data
@@ -255,16 +287,30 @@ export function AuthProvider({ children }) {
       throw error
     }
     profileUserIdRef.current = null
+    authUserIdRef.current = null
+    profileRequestRef.current += 1
+    isFetchingProfileRef.current = null
     setSession(null)
     setUser(null)
     setProfile(null)
-    setIsAdmin(false)
+    setProfileLoading(false)
+    setProfileError(null)
+    checkAdminStatus(null)
   }
 
   const resetPassword = async (email) => {
     if (!supabase) throw new Error('Supabase client is not configured.')
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/login`,
+    })
+    if (error) throw error
+    return data
+  }
+
+  const updatePassword = async (newPassword) => {
+    if (!supabase) throw new Error('Supabase client is not configured.')
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
     })
     if (error) throw error
     return data
@@ -288,9 +334,9 @@ export function AuthProvider({ children }) {
   }, [studentName])
 
   const studentEmail = user?.email || ''
-  const studentCollege = profile?.college || 'University Campus'
-  const studentDepartment = profile?.department || 'Undergraduate Department'
-  const studentSemester = profile?.semester ?? 1
+  const studentCollege = profile?.college || 'College not provided'
+  const studentDepartment = profile?.department || 'Department not provided'
+  const studentSemester = profile?.semester ?? null
 
   return (
     <AuthContext.Provider
@@ -302,6 +348,8 @@ export function AuthProvider({ children }) {
         profileLoading,
         profileError,
         isAdmin,
+        adminLoading,
+        adminError,
         studentName,
         studentInitials,
         studentEmail,
@@ -312,6 +360,7 @@ export function AuthProvider({ children }) {
         signUp,
         signOut,
         resetPassword,
+        updatePassword,
         updateProfile,
         refreshProfile,
       }}

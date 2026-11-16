@@ -22,6 +22,10 @@ import LostFound from './pages/LostFound'
 import Resources from './pages/Resources'
 import Profile   from './pages/Profile'
 import Admin     from './pages/Admin'
+import Community from './pages/Community'
+import TeamUp    from './pages/TeamUp'
+import Market    from './pages/Market'
+import Anonymous from './pages/Anonymous'
 
 // 404
 import NotFound from './pages/NotFound'
@@ -60,9 +64,14 @@ function App() {
                   <Route path="/events"     element={<Events />} />
                   <Route path="/lost-found" element={<LostFound />} />
                   <Route path="/resources"  element={<Resources />} />
+                  <Route path="/community"  element={<Community />} />
+                  <Route path="/teamup"     element={<TeamUp />} />
+                  <Route path="/market"     element={<Market />} />
                   <Route path="/profile"    element={<Profile />} />
                   <Route path="/admin"      element={<Admin />} />
                 </Route>
+                {/* ── Immersive Full-Screen CampusAnonymous ── */}
+                <Route path="/anonymous" element={<Anonymous />} />
               </Route>
 
               {/* ── Fallback ───────────────────────── */}

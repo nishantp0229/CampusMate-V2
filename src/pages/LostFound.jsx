@@ -7,7 +7,6 @@ import {
   Search,
   Bookmark,
   Bell,
-  Upload,
   MapPin,
   Compass,
 } from 'lucide-react'
@@ -46,7 +45,7 @@ const formatDate = (d) =>
   new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
 function LostFound() {
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const { state } = useLocation()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -98,7 +97,7 @@ function LostFound() {
           location: row.location,
           dateOccurred: row.date_occurred,
           imageUrl:
-            row.image_url ||
+            (row.image_url && !row.image_url.startsWith('blob:') ? row.image_url : null) ||
             ITEM_CATEGORY_IMAGES[row.category] ||
             ITEM_CATEGORY_IMAGES.Other,
           contactName: row.contact_name,
@@ -134,19 +133,21 @@ function LostFound() {
   const addNotification = (text) =>
     setNotifications((prev) => [{ id: `n-${Date.now()}`, text, time: 'Just now' }, ...prev])
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData((prev) => ({ ...prev, imageUrl: URL.createObjectURL(file) }))
-    }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.itemName.trim() || !formData.location.trim()) return
     if (!user) {
       alert('Please log in to report an item.')
       return
+    }
+    const imageUrl = formData.imageUrl.trim()
+    if (imageUrl) {
+      try {
+        if (new URL(imageUrl).protocol !== 'https:') throw new Error()
+      } catch {
+        alert('Please provide a permanent HTTPS image URL, or leave the image blank.')
+        return
+      }
     }
 
     setSubmitting(true)
@@ -162,12 +163,9 @@ function LostFound() {
         date_occurred: formData.dateOccurred
           ? new Date(formData.dateOccurred).toISOString()
           : new Date().toISOString(),
-        image_url:
-          formData.imageUrl ||
-          ITEM_CATEGORY_IMAGES[formData.category] ||
-          ITEM_CATEGORY_IMAGES.Other,
+        image_url: imageUrl || null,
         contact_name: profile?.full_name || user?.user_metadata?.full_name || 'Student',
-        contact_info: 'Available via CampusFind inquiry',
+        contact_info: null,
         is_resolved: false,
       }
 
@@ -189,7 +187,7 @@ function LostFound() {
         locationTag: data.location_tag,
         location: data.location,
         dateOccurred: data.date_occurred,
-        imageUrl: data.image_url,
+        imageUrl: data.image_url || ITEM_CATEGORY_IMAGES[data.category] || ITEM_CATEGORY_IMAGES.Other,
         contactName: data.contact_name,
         contactInfo: data.contact_info,
         isResolved: Boolean(data.is_resolved),
@@ -219,19 +217,21 @@ function LostFound() {
     })
   }
 
-  const handleFoundAction = (item) => {
-    addNotification(`You notified the student who posted "${item.itemName}"!`)
-    alert(`Thank you! A response has been delivered to the student who reported "${item.itemName}".`)
+  const handleFoundAction = () => {
+    alert('Messaging is not available yet, so no notification was sent. Please use the listed location or contact your campus lost-and-found desk.')
   }
 
   const handleMarkReturned = async (item) => {
     try {
-      const { error: updateErr } = await supabase
+      const { data, error: updateErr } = await supabase
         .from('lost_found')
         .update({ is_resolved: true })
         .eq('id', item.id)
+        .select('id')
+        .maybeSingle()
 
       if (updateErr) throw updateErr
+      if (!data) throw new Error('The listing was not updated. It may no longer exist or access was denied.')
 
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, isResolved: true } : i))
@@ -307,7 +307,7 @@ function LostFound() {
             <div className="mt-6 rounded-2xl border border-[var(--cm-border)] bg-[var(--cm-bg)] p-5">
               <div className="flex items-center justify-between pb-3 border-b border-[var(--cm-border)]">
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--cm-text)]">
-                  Live CampusFind Recovery Activity
+                  Your activity this session
                 </span>
                 <button
                   onClick={() => setShowActivity(false)}
@@ -570,17 +570,17 @@ function LostFound() {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2.5 pt-3 border-t border-[var(--cm-border)]">
-              {selectedItem.type === 'lost' && !selectedItem.isResolved && (
+              {selectedItem.type === 'lost' && !selectedItem.isResolved && selectedItem.userId !== user?.id && (
                 <button
                   type="button"
-                  onClick={() => handleFoundAction(selectedItem)}
+                  onClick={handleFoundAction}
                   className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition cursor-pointer shadow-xs"
                 >
                   I Found This Item 🤝
                 </button>
               )}
 
-              {!selectedItem.isResolved ? (
+              {!selectedItem.isResolved && (selectedItem.userId === user?.id || isAdmin) ? (
                 <button
                   type="button"
                   onClick={() => handleMarkReturned(selectedItem)}
@@ -588,11 +588,11 @@ function LostFound() {
                 >
                   Mark as Returned ✓
                 </button>
-              ) : (
+              ) : selectedItem.isResolved ? (
                 <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold py-2">
                   ✓ This item has been safely returned to its student owner.
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
         </Modal>
@@ -679,20 +679,19 @@ function LostFound() {
             </div>
           </div>
 
-          {/* Photo upload + preview */}
+          {/* Storage uploads are unavailable until storage policies are configured. */}
           <div>
-            <label className={labelCls}>Item Photograph</label>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 rounded-xl border border-[var(--cm-border)] bg-[var(--cm-bg)] px-4 py-2.5 text-xs font-bold text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] cursor-pointer transition">
-                <Upload size={14} className="text-[var(--cm-accent)]" /> Upload Photograph
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-              </label>
-              {formData.imageUrl && (
-                <div className="h-12 w-12 rounded-xl border border-[var(--cm-border)] overflow-hidden">
-                  <img src={formData.imageUrl} alt="Preview" className="h-full w-full object-cover" />
-                </div>
-              )}
-            </div>
+            <label className={labelCls}>Item Photograph URL (Optional)</label>
+            <input
+              type="url"
+              placeholder="https://example.com/item.jpg"
+              value={formData.imageUrl}
+              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              className={inputCls}
+            />
+            <p className="mt-1 text-[11px] text-[var(--cm-muted)]">
+              Use a permanent HTTPS image link. Photo uploads are not available yet.
+            </p>
           </div>
 
           <div>
