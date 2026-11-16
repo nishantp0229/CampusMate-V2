@@ -1,3 +1,10 @@
+-- =============================================================
+-- SUPERSEDED — DO NOT EXECUTE
+-- The canonical first-install migration is:
+--   database/migration_campus_anonymous_canonical.sql
+-- Automatic message deletion is disabled by policy.
+-- Retained for proposal/historical reference only.
+-- =============================================================
 -- CampusAnonymous message-retention mechanism.
 -- PROPOSAL: 30 days after room end and 90 days after the LAST report is
 -- resolved. These are configurable placeholders, not legal requirements.

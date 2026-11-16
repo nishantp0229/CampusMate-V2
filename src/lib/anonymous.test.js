@@ -112,7 +112,7 @@ test('[Static SQL] preflight checks profiles, Phase A admin infrastructure, and 
   assert.match(migration, /'anonymous_is_room_participant'/)
 })
 
-test('[Static SQL] tables, indexes, partial unique indexes and constraints are correct', () => {
+test('[Static SQL] tables, per-column indexes and constraints are present', () => {
   // All 6 tables (including rate limits)
   assert.match(migration, /CREATE TABLE public\.anonymous_queue/)
   assert.match(migration, /CREATE TABLE public\.anonymous_blocks/)
@@ -135,7 +135,8 @@ test('[Static SQL] tables, indexes, partial unique indexes and constraints are c
   const codeWithoutComments = migration.replace(/--.*$/gm, '')
   assert.equal(/(?<!b)trim\s*\(/.test(codeWithoutComments), false, 'No bare trim() calls permitted in migration')
 
-  // Partial unique indexes enforcing one active room per user
+  // These indexes cover each column separately; the active-participant
+  // migration is required to enforce uniqueness across both columns.
   assert.match(migration, /CREATE UNIQUE INDEX anonymous_rooms_one_active_per_user_1/)
   assert.match(migration, /ON public\.anonymous_rooms \(user_1\)\s+WHERE \(?status = 'active'\)?/)
   assert.match(migration, /CREATE UNIQUE INDEX anonymous_rooms_one_active_per_user_2/)

@@ -1,4 +1,9 @@
 -- =============================================================
+-- SUPERSEDED — DO NOT EXECUTE
+-- This migration has been superseded by:
+--   database/migration_campus_anonymous_canonical.sql
+-- Retained for historical audit reference only.
+-- =============================================================
 -- CampusMate — Phase E: CampusAnonymous Migration
 -- Alias-based 1-on-1 anonymous student chat & matchmaking.
 --

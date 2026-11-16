@@ -1,4 +1,11 @@
 -- =============================================================
+-- =============================================================
+-- SUPERSEDED & DEPRECATED — DO NOT EXECUTE
+-- This legacy prototype has security flaws and was never installed.
+-- The canonical, hardened first-install migration is:
+--   database/migration_campus_anonymous_canonical.sql
+-- Retained for historical reference only.
+-- =============================================================
 -- CampusMate — Migration: CampusAnonymous (Omegle-style Student Chat)
 --
 -- Features:

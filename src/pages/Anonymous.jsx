@@ -37,6 +37,14 @@ import {
   exitBrowserFullscreen,
 } from '../lib/anonymous'
 import { AnonymousWebRTC } from '../lib/anonymousWebrtc'
+import {
+  createAnonymousSessionGuard,
+  rememberAnonymousCleanup,
+  waitForAnonymousCleanup,
+  clearAnonymousCleanup,
+  getAnonymousAccessToken,
+  leaveAnonymousSession,
+} from '../lib/anonymousSession'
 
 // Helper to generate unique keys for ephemeral system notes
 let sysMsgCounter = 0
@@ -44,6 +52,12 @@ const createSysId = (prefix) => `${prefix}-${++sysMsgCounter}`
 
 export default function Anonymous() {
   const { user } = useAuth()
+  return <AnonymousWorkspace key={user?.id || 'signed-out'} />
+}
+
+function AnonymousWorkspace() {
+  const { user } = useAuth()
+  const userId = user?.id
   const navigate = useNavigate()
 
   // Fullscreen tracking state
@@ -69,6 +83,8 @@ export default function Anonymous() {
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [stopping, setStopping] = useState(false)
+  const [stopFailed, setStopFailed] = useState(false)
   const [errorBanner, setErrorBanner] = useState(null)
   const [systemNotice, setSystemNotice] = useState(null)
 
@@ -106,6 +122,19 @@ export default function Anonymous() {
   const heartbeatTimerRef = useRef(null)
   const matchPollTimerRef = useRef(null)
   const channelRef = useRef(null)
+  const roomRef = useRef(null)
+  const ownsSessionRef = useRef(false)
+  const reportPendingRef = useRef(false)
+  const stopRequestRef = useRef(null)
+  const intentRef = useRef(0)
+  const [sessionGuard] = useState(createAnonymousSessionGuard)
+
+  const clearQueueTimers = useCallback(() => {
+    clearInterval(heartbeatTimerRef.current)
+    clearInterval(matchPollTimerRef.current)
+    heartbeatTimerRef.current = null
+    matchPollTimerRef.current = null
+  }, [])
 
   // Auto-scroll messages
   useEffect(() => {
@@ -119,11 +148,14 @@ export default function Anonymous() {
     return () => clearTimeout(t)
   }, [systemNotice])
 
-  // Cleanup on unmount or page exit
+  // StrictMode's setup/cleanup replay must not leave a session the page has
+  // not started or restored. Real unmounts invalidate callbacks immediately.
   useEffect(() => {
+    sessionGuard.activate()
     return () => {
-      clearInterval(heartbeatTimerRef.current)
-      clearInterval(matchPollTimerRef.current)
+      sessionGuard.deactivate()
+      intentRef.current += 1
+      clearQueueTimers()
       if (webrtcRef.current) {
         webrtcRef.current.destroy()
         webrtcRef.current = null
@@ -132,23 +164,17 @@ export default function Anonymous() {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
       }
-      if (supabase && user?.id) {
-        ;(async () => {
-          try {
-            const { error } = await supabase.rpc('anonymous_leave')
-            if (error) {
-              console.warn('Cleanup leave error:', error.message)
-            }
-          } catch (err) {
-            console.warn('Cleanup leave error:', err)
-          }
-        })()
+      if (ownsSessionRef.current && supabase && userId) {
+        const previousRoom = roomRef.current
+        const cleanup = sessionGuard.stop(() => leaveAnonymousSession(supabase, userId, previousRoom))
+        rememberAnonymousCleanup(userId, cleanup)
+        cleanup.catch((err) => console.warn('Cleanup leave error:', err.message))
       }
     }
-  }, [user?.id])
+  }, [userId, sessionGuard, clearQueueTimers])
 
   // ─── WebRTC Setup ───────────────────────────────────────────
-  const initWebRTC = useCallback((activeRoomId) => {
+  const initWebRTC = useCallback((activeRoomId, token) => {
     if (!supabase || !activeRoomId) return
 
     if (webrtcRef.current) {
@@ -161,6 +187,7 @@ export default function Anonymous() {
       roomId: activeRoomId,
       supabase,
       onCallStateChange: (state) => {
+        if (!sessionGuard.isCurrent(token)) return
         setVideoCallState(state)
         if (state === 'idle') {
           // A later call gets fresh enabled tracks; keep the controls truthful.
@@ -172,177 +199,189 @@ export default function Anonymous() {
         }
       },
       onRemoteStream: (stream) => {
+        if (!sessionGuard.isCurrent(token)) return
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream
         }
       },
       onError: (msg) => {
+        if (!sessionGuard.isCurrent(token)) return
         setErrorBanner(msg)
       },
       onRoomEnded: () => {
-        if (webrtcRef.current !== rtc) return
+        if (webrtcRef.current !== rtc || !sessionGuard.isCurrent(token)) return
+        const endedToken = sessionGuard.invalidate()
+        ownsSessionRef.current = false
         webrtcRef.current = null
         setVideoCallState('idle')
         setStatus(ANONYMOUS_STATUS.ENDED)
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => sessionGuard.isCurrent(endedToken) ? [...prev, {
           id: createSysId('sys-disconnected'),
           is_system: true,
           content: 'Your partner has disconnected.',
-        }])
+        }] : prev)
       },
     })
 
     webrtcRef.current = rtc
-  }, [])
+  }, [sessionGuard])
 
   // ─── Matchmaking & Queue Handlers ───────────────────────────
-  const handleStartSearch = async () => {
-    if (!supabase || !user?.id) {
-      setErrorBanner('Please sign in to access CampusAnonymous.')
-      return
-    }
+  const acceptMatch = useCallback((data, token, restored = false) => {
+    if (!sessionGuard.isCurrent(token) || !data?.matched || !data.room_id) return null
+    // Claim the match once; overlapping polls for the waiting generation
+    // cannot create another peer manager or restore an older room.
+    const roomToken = sessionGuard.invalidate()
+    clearQueueTimers()
+    roomRef.current = data.room_id
+    ownsSessionRef.current = true
+    setRoomId(data.room_id)
+    setMyAlias(data.my_alias || 'You')
+    setPartnerAlias(data.partner_alias || 'Stranger')
+    setStatus(ANONYMOUS_STATUS.CONNECTED)
+    setSearching(false)
+    setMessages((prev) => sessionGuard.isCurrent(roomToken) && roomRef.current === data.room_id ? [...prev, {
+      id: createSysId(restored ? 'sys-restored' : 'sys-matched'),
+      is_system: true,
+      content: restored
+        ? `Reconnected with ${data.partner_alias || 'Stranger'}.`
+        : `Connected with ${data.partner_alias || 'Stranger'}! Say hello.`,
+    }] : prev)
+    initWebRTC(data.room_id, roomToken)
+    return roomToken
+  }, [sessionGuard, clearQueueTimers, initWebRTC])
 
-    setErrorBanner(null)
-    setSystemNotice(null)
-    setSearching(true)
-    setStatus(ANONYMOUS_STATUS.WAITING)
-    setMessages([
-      {
-        id: createSysId('sys-searching'),
-        is_system: true,
-        content: 'Looking for someone to chat with...',
-      },
-    ])
-    setRoomId(null)
-    setVideoCallState('idle')
-
-    try {
-      const { data, error } = await supabase.rpc('anonymous_join_or_match')
-      if (error) throw error
-
-      if (data?.matched && data.room_id) {
-        // Matched immediately with waiting peer!
-        setRoomId(data.room_id)
-        setMyAlias(data.my_alias || 'You')
-        setPartnerAlias(data.partner_alias || 'Stranger')
-        setStatus(ANONYMOUS_STATUS.CONNECTED)
-        setSearching(false)
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: createSysId('sys-matched'),
-            is_system: true,
-            content: `Connected with ${data.partner_alias}! Say hello.`,
-          },
-        ])
-        initWebRTC(data.room_id)
-      } else {
-        // Enqueued; start heartbeat and polling
-        startQueuePolling()
-      }
-    } catch (err) {
-      console.error('Matchmaking error:', err)
-      setErrorBanner(`Matchmaking failed: ${err.message || 'Please try again.'}`)
-      setStatus(ANONYMOUS_STATUS.IDLE)
-      setSearching(false)
-      setMessages([])
-    }
-  }
-
-  // Poll for match while in queue
-  const startQueuePolling = useCallback(() => {
-    clearInterval(heartbeatTimerRef.current)
-    clearInterval(matchPollTimerRef.current)
-
-    // Heartbeat every 15 seconds
+  const startQueuePolling = useCallback((token) => {
+    clearQueueTimers()
     heartbeatTimerRef.current = setInterval(async () => {
-      if (!supabase) return
+      if (!supabase || !sessionGuard.isCurrent(token)) return
       try {
+        const accessToken = await getAnonymousAccessToken(supabase, userId)
+        if (!sessionGuard.isCurrent(token)) return
         const { error } = await supabase.rpc('anonymous_heartbeat')
-        if (error) {
-          console.warn('Queue heartbeat error:', error.message)
-        }
+          .setHeader('Authorization', `Bearer ${accessToken}`)
+        if (error && sessionGuard.isCurrent(token)) console.warn('Queue heartbeat error:', error.message)
       } catch (err) {
-        console.warn('Queue heartbeat error:', err)
+        if (sessionGuard.isCurrent(token)) console.warn('Queue heartbeat error:', err)
       }
     }, 15000)
 
-    // Check match status every 2.5 seconds
     matchPollTimerRef.current = setInterval(async () => {
-      if (!supabase) return
+      if (!supabase || !sessionGuard.isCurrent(token)) return
       try {
+        const accessToken = await getAnonymousAccessToken(supabase, userId)
+        if (!sessionGuard.isCurrent(token)) return
         const { data, error } = await supabase.rpc('anonymous_check_match')
+          .setHeader('Authorization', `Bearer ${accessToken}`)
+        if (!sessionGuard.isCurrent(token)) return
         if (error) {
           console.warn('Check match error:', error.message)
           return
         }
         if (!data) return
-
         if (data.matched && data.room_id) {
-          clearInterval(heartbeatTimerRef.current)
-          clearInterval(matchPollTimerRef.current)
-
-          setRoomId(data.room_id)
-          setMyAlias(data.my_alias || 'You')
-          setPartnerAlias(data.partner_alias || 'Stranger')
-          setStatus(ANONYMOUS_STATUS.CONNECTED)
+          acceptMatch(data, token)
+        } else if (data.status === 'idle') {
+          sessionGuard.invalidate()
+          clearQueueTimers()
+          ownsSessionRef.current = false
           setSearching(false)
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: createSysId('sys-connected'),
-              is_system: true,
-              content: `Connected with ${data.partner_alias}! Say hello.`,
-            },
-          ])
-          initWebRTC(data.room_id)
+          setStatus(ANONYMOUS_STATUS.IDLE)
+          setSystemNotice('Search ended. Start again when you are ready.')
         }
       } catch (err) {
-        console.warn('Poll error:', err)
+        if (sessionGuard.isCurrent(token)) console.warn('Poll error:', err)
       }
     }, 2500)
-  }, [initWebRTC])
+  }, [userId, sessionGuard, clearQueueTimers, acceptMatch])
+
+  const handleStartSearch = async () => {
+    intentRef.current += 1
+    if (!supabase || !userId) {
+      setErrorBanner('Please sign in to access CampusAnonymous.')
+      return
+    }
+    const operation = sessionGuard.beginJoin(async (token) => {
+      await waitForAnonymousCleanup(userId)
+      if (!sessionGuard.isCurrent(token)) return null
+      const accessToken = await getAnonymousAccessToken(supabase, userId)
+      if (!sessionGuard.isCurrent(token)) return null
+      ownsSessionRef.current = true
+      const { data, error } = await supabase.rpc('anonymous_join_or_match')
+        .setHeader('Authorization', `Bearer ${accessToken}`)
+      if (error) throw error
+      return data
+    })
+    if (!operation) return
+
+    roomRef.current = null
+    setRoomId(null)
+    setErrorBanner(null)
+    setStopFailed(false)
+    setReportModalOpen(false)
+    setSubmittingReport(false)
+    reportPendingRef.current = false
+    setSystemNotice(null)
+    setSearching(true)
+    setStatus(ANONYMOUS_STATUS.WAITING)
+    setMessages([{ id: createSysId('sys-searching'), is_system: true, content: 'Looking for someone to chat with...' }])
+    setVideoCallState('idle')
+
+    try {
+      const data = await operation.task
+      if (!sessionGuard.isCurrent(operation.token) || !data) return
+      if (data.matched && data.room_id) acceptMatch(data, operation.token)
+      else if (data.status === 'waiting') startQueuePolling(operation.token)
+      else throw new Error('Unexpected matchmaking response.')
+    } catch (err) {
+      if (!sessionGuard.isCurrent(operation.token)) return
+      console.error('Matchmaking error:', err)
+      // A network failure does not prove the server failed to enqueue.
+      ownsSessionRef.current = true
+      setErrorBanner(`Could not confirm matchmaking: ${err.message || 'Please try again.'} Press Stop to clear any session.`)
+      setStopFailed(true)
+      setStatus(ANONYMOUS_STATUS.ENDED)
+      setSearching(false)
+    }
+  }
 
   // Restore active room or resume queue on mount
   useEffect(() => {
-    if (!supabase || !user?.id) return
+    if (!supabase || !userId) return
     let isMounted = true
+    const token = sessionGuard.current()
 
     ;(async () => {
       try {
+        await waitForAnonymousCleanup(userId)
+        if (!isMounted || !sessionGuard.isCurrent(token)) return
+        const accessToken = await getAnonymousAccessToken(supabase, userId)
+        if (!isMounted || !sessionGuard.isCurrent(token)) return
         const { data, error } = await supabase.rpc('anonymous_check_match')
-        if (error || !isMounted || !data) return
+          .setHeader('Authorization', `Bearer ${accessToken}`)
+        if (!isMounted || !sessionGuard.isCurrent(token)) return
+        if (error) throw error
+        if (!data) return
 
         if (data.matched && data.room_id) {
-          setRoomId(data.room_id)
-          setMyAlias(data.my_alias || 'You')
-          setPartnerAlias(data.partner_alias || 'Stranger')
-          setStatus(ANONYMOUS_STATUS.CONNECTED)
-
-          // Hydrate message history for active room
+          const roomToken = acceptMatch(data, token, true)
+          if (roomToken === null) return
           try {
             const { data: histData, error: histErr } = await supabase.rpc('anonymous_get_messages', {
               p_room_id: data.room_id,
             })
-            if (!histErr && Array.isArray(histData) && isMounted && histData.length > 0) {
-              setMessages(histData)
-            } else if (isMounted) {
-              setMessages([
-                {
-                  id: createSysId('sys-restored'),
-                  is_system: true,
-                  content: `Reconnected with ${data.partner_alias || 'Stranger'}.`,
-                },
-              ])
+            if (!histErr && Array.isArray(histData) && isMounted && sessionGuard.isCurrent(roomToken)) {
+              setMessages((prev) => {
+                if (!isMounted || !sessionGuard.isCurrent(roomToken) || roomRef.current !== data.room_id) return prev
+                const ids = new Set(histData.map((message) => message.id))
+                return [...histData, ...prev.filter((message) => !message.is_system && !ids.has(message.id))]
+              })
             }
           } catch (e) {
-            console.warn('Could not restore message history:', e)
-          }
-
-          if (isMounted) {
-            initWebRTC(data.room_id)
+            if (sessionGuard.isCurrent(roomToken)) console.warn('Could not restore message history:', e)
           }
         } else if (data.status === 'waiting' && isMounted) {
+          ownsSessionRef.current = true
           setStatus(ANONYMOUS_STATUS.WAITING)
           setSearching(true)
           setMessages([
@@ -352,91 +391,96 @@ export default function Anonymous() {
               content: 'Looking for someone to chat with...',
             },
           ])
-          startQueuePolling()
+          startQueuePolling(token)
         }
       } catch (err) {
-        console.warn('Session hydration error:', err)
+        if (isMounted && sessionGuard.isCurrent(token)) {
+          setErrorBanner(`Could not verify the previous session: ${err.message || 'Please try again.'} Press Stop to retry cleanup.`)
+          setStopFailed(true)
+          setStatus(ANONYMOUS_STATUS.ENDED)
+          ownsSessionRef.current = true
+        }
       }
     })()
 
     return () => {
       isMounted = false
     }
-  }, [user?.id, initWebRTC, startQueuePolling])
+  }, [userId, sessionGuard, acceptMatch, startQueuePolling])
 
-  const handleCancelSearch = async () => {
-    clearInterval(heartbeatTimerRef.current)
-    clearInterval(matchPollTimerRef.current)
-    setSearching(false)
-    setStatus(ANONYMOUS_STATUS.IDLE)
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: createSysId('sys-cancelled'),
-        is_system: true,
-        content: 'Search cancelled.',
-      },
-    ])
-
-    if (supabase) {
-      try {
-        const { error } = await supabase.rpc('anonymous_leave')
-        if (error) {
-          console.warn('Cancel queue error:', error.message)
-        }
-      } catch (err) {
-        console.warn('Cancel queue error:', err)
+  const stopCurrentSession = () => {
+    if (stopRequestRef.current) return stopRequestRef.current
+    const previousRoom = roomRef.current
+    const stop = sessionGuard.stop(async () => {
+      if (ownsSessionRef.current) {
+        if (!supabase || !userId) throw new Error('Your session is unavailable.')
+        await leaveAnonymousSession(supabase, userId, previousRoom)
       }
-    }
-  }
-
-  const handleEndChat = async () => {
+    })
+    const token = sessionGuard.current()
+    clearQueueTimers()
     if (webrtcRef.current) {
       webrtcRef.current.destroy()
       webrtcRef.current = null
     }
     setVideoCallState('idle')
-
-    if (supabase && roomId) {
+    setStopping(true)
+    setSending(false)
+    setReportModalOpen(false)
+    setSubmittingReport(false)
+    reportPendingRef.current = false
+    const result = (async () => {
       try {
-        const { error } = await supabase.rpc('anonymous_leave', { p_room_id: roomId })
-        if (error) {
-          console.warn('Leave room error:', error.message)
+        await stop
+        if (sessionGuard.isCurrent(token)) {
+          if (userId) clearAnonymousCleanup(userId)
+          ownsSessionRef.current = false
+          setStopFailed(false)
+          setSearching(false)
+          setStatus(previousRoom ? ANONYMOUS_STATUS.ENDED : ANONYMOUS_STATUS.IDLE)
+          setMessages((prev) => sessionGuard.isCurrent(token) ? [...prev, {
+            id: createSysId('sys-ended'), is_system: true,
+            content: previousRoom ? 'You have disconnected.' : 'Search cancelled.',
+          }] : prev)
         }
+        return true
       } catch (err) {
-        console.warn('Leave room error:', err)
+        if (sessionGuard.isCurrent(token)) {
+          setStopFailed(true)
+          setSearching(false)
+          setStatus(ANONYMOUS_STATUS.ENDED)
+          setErrorBanner(`Could not confirm the session ended: ${err.message || 'Please try again.'} Press Stop to retry.`)
+        }
+        return false
+      } finally {
+        if (sessionGuard.isCurrent(token)) setStopping(false)
       }
-    }
+    })()
+    stopRequestRef.current = result
+    result.then(() => { if (stopRequestRef.current === result) stopRequestRef.current = null })
+    return result
+  }
 
-    setStatus(ANONYMOUS_STATUS.ENDED)
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: createSysId('sys-ended'),
-        is_system: true,
-        content: 'You have disconnected.',
-      },
-    ])
+  const handleStop = async () => {
+    intentRef.current += 1
+    await stopCurrentSession()
   }
 
   const handleNextPartner = async () => {
-    await handleEndChat()
-    await handleStartSearch()
+    const intent = ++intentRef.current
+    const stopped = await stopCurrentSession()
+    if (stopped && intentRef.current === intent && sessionGuard.isCurrent(sessionGuard.current())) {
+      await handleStartSearch()
+    }
   }
 
   // ─── Exit Immersive Mode Handler ────────────────────────────
   const handleExit = async () => {
-    // 1. Exit native browser fullscreen if active
+    const intent = ++intentRef.current
+    const stopped = await stopCurrentSession()
+    if (!stopped || intentRef.current !== intent || !sessionGuard.isCurrent(sessionGuard.current())) return
     await exitBrowserFullscreen()
-
-    // 2. Clean up active chat or queue session
-    if (status === ANONYMOUS_STATUS.CONNECTED) {
-      await handleEndChat()
-    } else if (status === ANONYMOUS_STATUS.WAITING) {
-      await handleCancelSearch()
-    }
-
-    // 3. Return to previous page in history, or fallback to Dashboard
+    if (intentRef.current !== intent || !sessionGuard.isCurrent(sessionGuard.current())) return
     if (window.history.state && window.history.state.idx > 0) {
       navigate(-1)
     } else {
@@ -456,6 +500,7 @@ export default function Anonymous() {
   // ─── Realtime Subscriptions ─────────────────────────────────
   useEffect(() => {
     if (!supabase || !roomId || status !== ANONYMOUS_STATUS.CONNECTED) return
+    const token = sessionGuard.current()
 
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
@@ -476,8 +521,10 @@ export default function Anonymous() {
         },
         (payload) => {
           const msg = payload.new
-          if (!msg?.id || !msg?.content) return
+          if (!sessionGuard.isCurrent(token) || roomRef.current !== roomId ||
+              msg?.room_id !== roomId || !msg?.id || !msg?.content) return
           setMessages((prev) => {
+            if (!sessionGuard.isCurrent(token) || roomRef.current !== roomId) return prev
             if (prev.some((m) => m.id === msg.id)) return prev
             const isSelf = myAlias && msg.sender_alias === myAlias
             return [
@@ -501,14 +548,15 @@ export default function Anonymous() {
 
     return () => {
       supabase.removeChannel(channel)
-      channelRef.current = null
+      if (channelRef.current === channel) channelRef.current = null
     }
-  }, [roomId, status, partnerAlias, myAlias])
+  }, [roomId, status, partnerAlias, myAlias, sessionGuard])
 
   // ─── Message Transmission ───────────────────────────────────
   const handleSendMessage = async (e) => {
     e?.preventDefault()
-    if (!inputValue.trim() || sending || !roomId || status !== ANONYMOUS_STATUS.CONNECTED) return
+    if (!inputValue.trim() || sending || !roomId || stopRequestRef.current ||
+        status !== ANONYMOUS_STATUS.CONNECTED) return
 
     const validation = validateAnonymousMessage(inputValue)
     if (!validation.isValid) {
@@ -518,74 +566,97 @@ export default function Anonymous() {
 
     setSending(true)
     setErrorBanner(null)
+    const token = sessionGuard.current()
+    const targetRoom = roomId
 
     try {
       const { data, error } = await supabase.rpc('anonymous_send_message', {
-        p_room_id: roomId,
+        p_room_id: targetRoom,
         p_content: validation.content,
       })
 
+      if (!sessionGuard.isCurrent(token) || roomRef.current !== targetRoom) return
       if (error) throw error
 
       setInputValue('')
       if (data?.id) {
         setMessages((prev) => {
+          if (!sessionGuard.isCurrent(token) || roomRef.current !== targetRoom) return prev
           if (prev.some((m) => m.id === data.id)) return prev
           return [...prev, data]
         })
       }
     } catch (err) {
+      if (!sessionGuard.isCurrent(token) || roomRef.current !== targetRoom) return
       console.error('Send message error:', err)
       if (err.message?.includes('already ended') || err.message?.includes('not found')) {
+        const endedToken = sessionGuard.invalidate()
+        ownsSessionRef.current = false
+        setSending(false)
+        if (webrtcRef.current) {
+          webrtcRef.current.destroy()
+          webrtcRef.current = null
+        }
+        setVideoCallState('idle')
         setStatus(ANONYMOUS_STATUS.ENDED)
-        setMessages((prev) => [
+        setMessages((prev) => sessionGuard.isCurrent(endedToken) ? [
           ...prev,
           {
             id: createSysId('sys-disconnected'),
             is_system: true,
             content: `${partnerAlias || 'Stranger'} has disconnected.`,
           },
-        ])
+        ] : prev)
       } else {
         setErrorBanner(`Failed to send: ${err.message || 'Please check your connection.'}`)
       }
     } finally {
-      setSending(false)
+      if (sessionGuard.isCurrent(token) && roomRef.current === targetRoom) setSending(false)
     }
   }
 
   // ─── Safety: Block & Report ─────────────────────────────────
   const handleBlockPartner = async () => {
+    if (stopRequestRef.current) return
     if (!window.confirm(`Block ${partnerAlias || 'this partner'}? You will not be matched together again.`)) {
       return
     }
 
     if (!supabase || !roomId) return
+    const token = sessionGuard.current()
+    const targetRoom = roomId
 
     try {
-      const { error } = await supabase.rpc('anonymous_block_partner', { p_room_id: roomId })
+      const { data, error } = await supabase.rpc('anonymous_block_partner', { p_room_id: targetRoom })
+      if (!sessionGuard.isCurrent(token) || roomRef.current !== targetRoom) return
       if (error) throw error
+      if (data !== true) throw new Error('The server did not confirm the block.')
 
+      const endedToken = sessionGuard.invalidate()
+      ownsSessionRef.current = false
+      setSending(false)
       if (webrtcRef.current) {
         webrtcRef.current.destroy()
         webrtcRef.current = null
       }
       setStatus(ANONYMOUS_STATUS.ENDED)
-      setMessages((prev) => [
+      setMessages((prev) => sessionGuard.isCurrent(endedToken) ? [
         ...prev,
         {
           id: createSysId('sys-blocked'),
           is_system: true,
           content: `${partnerAlias || 'Partner'} blocked. You will never be matched together again.`,
         },
-      ])
+      ] : prev)
     } catch (err) {
+      if (!sessionGuard.isCurrent(token) || roomRef.current !== targetRoom) return
       console.error('Block error:', err)
       setErrorBanner(`Could not block user: ${err.message || 'Please try again.'}`)
     }
   }
 
   const handleOpenReportModal = () => {
+    if (stopRequestRef.current) return
     setReportReason(REPORT_REASONS[0])
     const lastMsg = messages.filter((m) => !m.is_system).pop()?.content || ''
     setReportSnippet(lastMsg)
@@ -594,7 +665,7 @@ export default function Anonymous() {
 
   const handleSubmitReport = async (e) => {
     e.preventDefault()
-    if (!supabase || !roomId) return
+    if (!supabase || !roomId || stopRequestRef.current || reportPendingRef.current) return
 
     const validation = validateAnonymousReport(reportReason, reportSnippet)
     if (!validation.isValid) {
@@ -602,36 +673,52 @@ export default function Anonymous() {
       return
     }
 
+    reportPendingRef.current = true
     setSubmittingReport(true)
     setErrorBanner(null)
+    const targetRoom = roomId
+    const intent = intentRef.current
+    // A room-end notification may arrive before this response. Keep the
+    // result only while the same page intent and room are still current.
+    const isCurrentReport = () => intentRef.current === intent &&
+      roomRef.current === targetRoom && sessionGuard.isCurrent(sessionGuard.current())
 
     try {
-      const { error } = await supabase.rpc('anonymous_report_partner', {
-        p_room_id: roomId,
+      const { data, error } = await supabase.rpc('anonymous_report_partner', {
+        p_room_id: targetRoom,
         p_reason: validation.reason,
         p_snippet: validation.snippet,
       })
+      if (!isCurrentReport()) return
       if (error) throw error
+      if (!data) throw new Error('The server did not confirm the report.')
 
+      const endedToken = sessionGuard.invalidate()
+      ownsSessionRef.current = false
+      setSending(false)
       setReportModalOpen(false)
       if (webrtcRef.current) {
         webrtcRef.current.destroy()
         webrtcRef.current = null
       }
       setStatus(ANONYMOUS_STATUS.ENDED)
-      setMessages((prev) => [
+      setMessages((prev) => sessionGuard.isCurrent(endedToken) ? [
         ...prev,
         {
           id: createSysId('sys-reported'),
           is_system: true,
           content: 'Report submitted for review. Partner has been blocked.',
         },
-      ])
+      ] : prev)
     } catch (err) {
+      if (!isCurrentReport()) return
       console.error('Report submission error:', err)
-      setErrorBanner(`Failed to submit report: ${err.message || 'Please try again.'}`)
+      setErrorBanner(`Could not confirm the report: ${err.message || 'Please try again.'}`)
     } finally {
-      setSubmittingReport(false)
+      if (isCurrentReport()) {
+        reportPendingRef.current = false
+        setSubmittingReport(false)
+      }
     }
   }
 
@@ -930,6 +1017,7 @@ export default function Anonymous() {
                 <button
                   type="button"
                   onClick={handleBlockPartner}
+                  disabled={stopping}
                   className="flex items-center gap-1 border border-[var(--cm-border)] bg-[var(--cm-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--cm-text)] hover:bg-rose-500 hover:text-white dark:hover:bg-rose-700"
                   title="Block partner"
                 >
@@ -939,6 +1027,7 @@ export default function Anonymous() {
                 <button
                   type="button"
                   onClick={handleOpenReportModal}
+                  disabled={stopping}
                   className="flex items-center gap-1 border border-[var(--cm-border)] bg-[var(--cm-surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--cm-text)] hover:bg-amber-500 hover:text-white dark:hover:bg-amber-700"
                   title="Report partner"
                 >
@@ -1004,7 +1093,7 @@ export default function Anonymous() {
                 type="button"
                 onClick={handleStartSearch}
                 disabled={
-                  searching ||
+                  searching || stopping || stopFailed ||
                   (status !== ANONYMOUS_STATUS.IDLE && status !== ANONYMOUS_STATUS.ENDED)
                 }
                 className={`border-2 border-[var(--cm-border)] px-3.5 py-2 text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0px_var(--cm-border)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-none select-none disabled:opacity-40 disabled:cursor-not-allowed ${
@@ -1019,7 +1108,7 @@ export default function Anonymous() {
               <button
                 type="button"
                 onClick={handleNextPartner}
-                disabled={status !== ANONYMOUS_STATUS.CONNECTED && status !== ANONYMOUS_STATUS.WAITING}
+                disabled={stopping || stopFailed || (status !== ANONYMOUS_STATUS.CONNECTED && status !== ANONYMOUS_STATUS.WAITING)}
                 className={`border-2 border-[var(--cm-border)] px-3.5 py-2 text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0px_var(--cm-border)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-none select-none disabled:opacity-40 disabled:cursor-not-allowed ${
                   status === ANONYMOUS_STATUS.CONNECTED || status === ANONYMOUS_STATUS.WAITING
                     ? 'bg-amber-400 text-gray-950 hover:bg-amber-500 dark:bg-amber-500'
@@ -1031,15 +1120,15 @@ export default function Anonymous() {
 
               <button
                 type="button"
-                onClick={status === ANONYMOUS_STATUS.WAITING ? handleCancelSearch : handleEndChat}
-                disabled={status !== ANONYMOUS_STATUS.CONNECTED && status !== ANONYMOUS_STATUS.WAITING}
+                onClick={handleStop}
+                disabled={stopping || (!stopFailed && status !== ANONYMOUS_STATUS.CONNECTED && status !== ANONYMOUS_STATUS.WAITING)}
                 className={`border-2 border-[var(--cm-border)] px-3.5 py-2 text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0px_var(--cm-border)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-none select-none disabled:opacity-40 disabled:cursor-not-allowed ${
                   status === ANONYMOUS_STATUS.CONNECTED || status === ANONYMOUS_STATUS.WAITING
                     ? 'bg-rose-600 text-white hover:bg-rose-700'
                     : 'bg-[var(--cm-surface)] text-[var(--cm-muted)]'
                 }`}
               >
-                Stop
+                {stopping ? 'Stopping...' : stopFailed ? 'Retry Stop' : 'Stop'}
               </button>
             </div>
 
@@ -1057,12 +1146,12 @@ export default function Anonymous() {
                       : 'click Start to begin chatting...'
                 }
                 maxLength={1000}
-                disabled={status !== ANONYMOUS_STATUS.CONNECTED || sending}
+                disabled={stopping || status !== ANONYMOUS_STATUS.CONNECTED || sending}
                 className="flex-1 border-2 border-[var(--cm-border)] bg-[var(--cm-surface)] px-3 py-1.5 text-sm text-[var(--cm-text)] outline-none min-w-0 focus:border-[var(--cm-accent)] disabled:opacity-50 disabled:bg-[var(--cm-bg)]"
               />
               <button
                 type="submit"
-                disabled={!inputValue.trim() || sending || status !== ANONYMOUS_STATUS.CONNECTED}
+                disabled={stopping || !inputValue.trim() || sending || status !== ANONYMOUS_STATUS.CONNECTED}
                 className="border-2 border-[var(--cm-border)] bg-[var(--cm-surface)] px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0px_var(--cm-border)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-none select-none text-[var(--cm-text)] hover:bg-[var(--cm-secondary)] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {sending ? <Loader2 size={14} className="animate-spin" /> : 'Send'}
@@ -1146,7 +1235,7 @@ export default function Anonymous() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingReport}
+                  disabled={submittingReport || stopping}
                   className="border-2 border-rose-700 bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
                 >
                   {submittingReport ? 'Submitting...' : 'Submit Report & Block'}

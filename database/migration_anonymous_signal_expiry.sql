@@ -1,3 +1,10 @@
+-- =============================================================
+-- SUPERSEDED — DO NOT EXECUTE
+-- The canonical first-install migration is:
+--   database/migration_campus_anonymous_canonical.sql
+-- In-database pg_cron scheduled jobs are disabled by zero-budget policy.
+-- Retained for proposal/historical reference only.
+-- =============================================================
 -- CampusAnonymous: short-lived signaling metadata and in-database cleanup.
 -- Requires the reviewed CampusAnonymous and active-participant migrations.
 -- The in-database pg_cron extension must already be installed and operational;
