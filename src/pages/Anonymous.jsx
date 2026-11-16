@@ -45,6 +45,7 @@ import {
   clearAnonymousCleanup,
   getAnonymousAccessToken,
   leaveAnonymousSession,
+  executeAnonymousExit,
 } from '../lib/anonymousSession'
 
 // Helper to generate unique keys for ephemeral system notes
@@ -131,6 +132,7 @@ function AnonymousWorkspace() {
   const reportPendingRef = useRef(false)
   const stopRequestRef = useRef(null)
   const intentRef = useRef(0)
+  const isExitingRef = useRef(false)
   const [sessionGuard] = useState(createAnonymousSessionGuard)
 
   const clearQueueTimers = useCallback(() => {
@@ -300,6 +302,7 @@ function AnonymousWorkspace() {
   }, [userId, sessionGuard, clearQueueTimers, acceptMatch])
 
   const handleStartSearch = async () => {
+    if (isExitingRef.current) return
     intentRef.current += 1
     if (!supabase || !userId) {
       setErrorBanner('Please sign in to access CampusAnonymous.')
@@ -466,11 +469,13 @@ function AnonymousWorkspace() {
   }
 
   const handleStop = async () => {
+    if (isExitingRef.current) return
     intentRef.current += 1
     await stopCurrentSession()
   }
 
   const handleNextPartner = async () => {
+    if (isExitingRef.current) return
     const intent = ++intentRef.current
     const stopped = await stopCurrentSession()
     if (stopped && intentRef.current === intent && sessionGuard.isCurrent(sessionGuard.current())) {
@@ -480,16 +485,51 @@ function AnonymousWorkspace() {
 
   // ─── Exit Immersive Mode Handler ────────────────────────────
   const handleExit = async () => {
-    const intent = ++intentRef.current
-    const stopped = await stopCurrentSession()
-    if (!stopped || intentRef.current !== intent || !sessionGuard.isCurrent(sessionGuard.current())) return
-    await exitBrowserFullscreen()
-    if (intentRef.current !== intent || !sessionGuard.isCurrent(sessionGuard.current())) return
-    if (window.history.state && window.history.state.idx > 0) {
-      navigate(-1)
-    } else {
-      navigate('/dashboard')
-    }
+    const previousRoom = roomRef.current
+    roomRef.current = null
+    const hadSession = ownsSessionRef.current
+    ownsSessionRef.current = false
+    setSearching(false)
+    setStatus(ANONYMOUS_STATUS.IDLE)
+    setPartnerAlias('')
+    setMessages([])
+    setReportModalOpen(false)
+    setSubmittingReport(false)
+    reportPendingRef.current = false
+
+    await executeAnonymousExit({
+      sessionGuard,
+      supabase,
+      userId,
+      roomId: previousRoom,
+      hadSession,
+      clearTimers: clearQueueTimers,
+      destroyWebRTC: () => {
+        if (webrtcRef.current) {
+          try { webrtcRef.current.destroy() } catch {}
+          webrtcRef.current = null
+        }
+        if (localVideoRef.current?.srcObject) {
+          try { localVideoRef.current.srcObject.getTracks?.().forEach((t) => t.stop()) } catch {}
+          localVideoRef.current.srcObject = null
+        }
+        if (remoteVideoRef.current?.srcObject) {
+          remoteVideoRef.current.srcObject = null
+        }
+        setVideoCallState('idle')
+        setCameraActive(false)
+        setMicActive(false)
+      },
+      destroyChannel: () => {
+        if (channelRef.current && supabase) {
+          try { supabase.removeChannel(channelRef.current) } catch {}
+          channelRef.current = null
+        }
+      },
+      exitFullscreen: exitBrowserFullscreen,
+      navigate,
+      isExitingRef,
+    })
   }
 
   // Toggle native browser fullscreen
