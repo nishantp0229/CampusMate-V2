@@ -1,6 +1,6 @@
 // src/pages/Resources.jsx — NoteNest academic vault & resource library inspired by Campus Compass
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   BookOpen,
@@ -12,7 +12,8 @@ import {
 } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import { MOCK_RESOURCES } from '../utils/mockData'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const SEMESTERS = ['All', '1', '2', '3', '4', '5', '6', '7', '8']
 
@@ -49,14 +50,69 @@ const INPUT_CLASS =
 const LABEL_CLASS = 'mb-1 block text-xs font-bold text-[var(--cm-muted)] uppercase tracking-wider'
 
 function Resources() {
+  const { user } = useAuth()
   const { state } = useLocation()
-  const [resources, setResources] = useState(MOCK_RESOURCES)
+  const [resources, setResources] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [selectedSem, setSelectedSem] = useState('All')
   const [selectedFormat, setSelectedFormat] = useState('all')
   const [selectedSubject, setSelectedSubject] = useState('All Subjects')
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddOpen, setIsAddOpen] = useState(Boolean(state?.openAdd))
   const [formData, setFormData] = useState(INITIAL_FORM)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchResources = async () => {
+      if (isMounted) {
+        setLoading(true)
+        setError(null)
+      }
+
+      try {
+        const { data, error: err } = await supabase
+          .from('resources')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (!isMounted) return
+        if (err) throw err
+
+        const normalized = (data || []).map((row) => ({
+          id: row.id,
+          userId: row.user_id,
+          title: row.title,
+          description: row.description,
+          subject: row.subject,
+          semester: row.semester,
+          resourceType: row.resource_type,
+          url: row.url,
+          tags: row.tags || [],
+          createdAt: row.created_at,
+        }))
+
+        setResources(normalized)
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error fetching resources:', err)
+          setError('Unable to load study resources. Please try again.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchResources()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const filteredResources = resources.filter((res) => {
     if (selectedSem !== 'All' && res.semester !== Number(selectedSem)) return false
@@ -73,29 +129,61 @@ function Resources() {
     )
   })
 
-  const handleAddResource = (e) => {
+  const handleAddResource = async (e) => {
     e.preventDefault()
     if (!formData.title.trim() || !formData.subject.trim() || !formData.url.trim()) return
+    if (!user) {
+      alert('Please log in to upload resources.')
+      return
+    }
 
     const tags = formData.tags
       ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
       : []
 
-    const newRes = {
-      id: `res-${Date.now()}`,
-      title: formData.title.trim(),
-      description: formData.description.trim() || 'Shared study resource.',
-      subject: formData.subject.trim(),
-      semester: Number(formData.semester),
-      resourceType: formData.resourceType,
-      url: formData.url.trim(),
-      tags,
-      createdAt: new Date().toISOString(),
-    }
+    setSubmitting(true)
+    try {
+      const payload = {
+        user_id: user.id,
+        title: formData.title.trim(),
+        description: formData.description.trim() || 'Shared study resource.',
+        subject: formData.subject.trim(),
+        semester: Number(formData.semester),
+        resource_type: formData.resourceType,
+        url: formData.url.trim(),
+        tags,
+      }
 
-    setResources((prev) => [newRes, ...prev])
-    setFormData(INITIAL_FORM)
-    setIsAddOpen(false)
+      const { data, error: insertErr } = await supabase
+        .from('resources')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (insertErr) throw insertErr
+
+      const newRes = {
+        id: data.id,
+        userId: data.user_id,
+        title: data.title,
+        description: data.description,
+        subject: data.subject,
+        semester: data.semester,
+        resourceType: data.resource_type,
+        url: data.url,
+        tags: data.tags || [],
+        createdAt: data.created_at,
+      }
+
+      setResources((prev) => [newRes, ...prev])
+      setFormData(INITIAL_FORM)
+      setIsAddOpen(false)
+    } catch (err) {
+      console.error('Error adding resource:', err)
+      alert(err.message || 'Failed to upload resource. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const getFormatIcon = (type) => {
@@ -210,7 +298,15 @@ function Resources() {
         </div>
 
         {/* ── 4. RESOURCE CARDS GRID ── */}
-        {filteredResources.length === 0 ? (
+        {loading ? (
+          <div className="py-16 text-center text-xs font-semibold text-[var(--cm-muted)]">
+            Loading study vault...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-rose-300 bg-rose-50/50 p-6 text-center text-xs text-rose-700">
+            {error}
+          </div>
+        ) : filteredResources.length === 0 ? (
           <EmptyState
             icon={BookOpen}
             title="No study resources found"
@@ -268,7 +364,7 @@ function Resources() {
 
                 <div className="pt-4 mt-4 border-t border-[var(--cm-border)]/60 flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    ✓ Verified Material
+                    Student-shared material
                   </span>
                   <a
                     href={res.url}
@@ -387,9 +483,10 @@ function Resources() {
             </button>
             <button
               type="submit"
-              className="workspace-primary-button"
+              disabled={submitting}
+              className="workspace-primary-button disabled:opacity-50"
             >
-              Share Notes
+              {submitting ? 'Sharing...' : 'Share Notes'}
             </button>
           </div>
         </form>

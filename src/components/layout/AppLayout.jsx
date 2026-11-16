@@ -8,7 +8,7 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import '../../styles/workspace.css'
 
-function AppLayout({ lostFoundItems }) {
+function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   const menuButtonRef = useRef(null)
@@ -49,7 +49,7 @@ function AppLayout({ lostFoundItems }) {
         <button type="button" className="workspace-backdrop" onClick={closeSidebar} aria-label="Close navigation" />
       )}
       <div className="workspace-column">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} menuOpen={sidebarOpen} menuButtonRef={menuButtonRef} lostFoundItems={lostFoundItems} />
+        <Topbar onMenuClick={() => setSidebarOpen(true)} menuOpen={sidebarOpen} menuButtonRef={menuButtonRef} />
         <main className="workspace-main">
           <Outlet />
         </main>

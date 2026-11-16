@@ -61,7 +61,7 @@ const spaces = [
 ]
 
 const activities = [
-  { category: '01 / COMMUNITY', title: 'Student clubs', text: 'Find the people who are into what you’re into.', image: 'students' },
+  { category: '01 / COMMUNITY', title: 'Student clubs', text: 'Find the people who are into what you’re into.', image: 'hero-classroom-students' },
   { category: '02 / MAKE', title: 'Hackathons', text: 'Bring an idea, build something, learn together.', image: 'workshop' },
   { category: '03 / CULTURE', title: 'Arts & culture', text: 'From the first rehearsal to the last encore.', image: 'culture' },
   { category: '04 / TOGETHER', title: 'Campus events', text: 'Make the most of the moments outside class.', image: 'event' },
