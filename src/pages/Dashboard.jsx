@@ -39,7 +39,7 @@ const HERO_CAROUSEL_SLIDES = [
     ctaLink: '/planner',
   },
   {
-    image: photo('students'),
+    image: photo('hero-classroom-students'),
     tag: 'MAKE ROOM FOR CAMPUS LIFE',
     title: 'There’s more beyond class.',
     desc: 'Find your people and discover the communities and activities around you.',
@@ -72,7 +72,7 @@ const CAMPUS_SPACES = [
   {
     name: 'People & projects',
     category: 'Better together',
-    image: photo('students'),
+    image: photo('hero-classroom-students'),
     highlight: 'Good ideas are even better when you share them.',
   },
   {

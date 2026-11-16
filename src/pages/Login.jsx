@@ -66,7 +66,7 @@ function PhotoPanel({ mode, onSwitch, active }) {
   const isWelcome = mode === 'welcome'
   return (
     <div className={`cm-auth-photo-panel ${isWelcome ? 'cm-auth-photo-left' : 'cm-auth-photo-right'}`} aria-hidden={!active} inert={!active}>
-      <img src={photo(isWelcome ? 'students' : 'architecture')} alt="" width="1600" height="1067" />
+      <img src={photo(isWelcome ? 'hero-classroom-students' : 'architecture')} alt="" width="1600" height="1067" />
       <div className="cm-auth-photo-content">
         <p className="cm-auth-eyebrow"><span /> {isWelcome ? 'THE STORY CONTINUES' : 'YOUR NEXT CHAPTER AWAITS'}</p>
         <h2>{isWelcome ? <>There’s more<br />to <em>your story.</em></> : <>Your campus<br />story <em>starts here.</em></>}</h2>

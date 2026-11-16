@@ -112,16 +112,116 @@ test('[canonical] block and report remove caller from queue without deleting par
   assert.doesNotMatch(reportFn, /DELETE FROM public\.anonymous_queue WHERE user_id IN/i)
 })
 
-test('[canonical] realtime preflight rejects all-tables publication, requires pubinsert, and rejects sensitive tables', () => {
-  assert.match(canonical, /pubname = 'supabase_realtime' AND NOT puballtables AND pubinsert/)
+test('[canonical, part1, part2_core & part3] realtime preflight rejects all-tables, namespace publication, and sensitive tables', () => {
+  const part1 = read('database/migration_campus_anonymous_part1_schema.sql')
+  const part2Core = read('database/migration_campus_anonymous_part2_core_rpcs.sql')
+  const part3 = read('database/migration_campus_anonymous_part3_signaling.sql')
+
+  for (const src of [canonical, part1, part2Core, part3]) {
+    assert.match(src, /pubname = 'supabase_realtime'/)
+    assert.match(src, /puballtables/)
+    assert.match(src, /pubinsert/)
+    for (const table of [
+      'anonymous_queue', 'anonymous_rooms', 'anonymous_blocks',
+      'anonymous_reports', 'anonymous_rate_limits', 'anonymous_video_sessions',
+      'anonymous_signals', 'anonymous_active_participants'
+    ]) {
+      assert.ok(src.includes(`'${table}'`), `missing publication check for ${table}`)
+    }
+  }
+})
+
+test('[functions audit] exactly 16 anonymous functions exist across Part 1, Part 2 Core and Part 3 with SECURITY DEFINER and empty search_path', () => {
+  const part1 = read('database/migration_campus_anonymous_part1_schema.sql')
+  const part2Core = read('database/migration_campus_anonymous_part2_core_rpcs.sql')
+  const part3 = read('database/migration_campus_anonymous_part3_signaling.sql')
+  const combined = `${part1}\n${part2Core}\n${part3}`
+
+  const expectedSignatures = [
+    // Part 1: 1 trigger function + 2 helper functions
+    'anonymous_sync_active_participants()',
+    'anonymous_is_room_participant(p_room_id UUID)',
+    'anonymous_check_rate_limit(p_user_id UUID, p_action TEXT, p_max INT, p_window INTERVAL)',
+    // Part 2 Core: 11 application RPCs
+    'anonymous_join_or_match()',
+    'anonymous_check_match()',
+    'anonymous_get_room_info(p_room_id UUID)',
+    'anonymous_get_messages(p_room_id UUID)',
+    'anonymous_heartbeat()',
+    'anonymous_leave(p_room_id UUID DEFAULT NULL)',
+    'anonymous_send_message(p_room_id UUID, p_content TEXT)',
+    'anonymous_block_partner(p_room_id UUID)',
+    'anonymous_report_partner(p_room_id UUID, p_reason TEXT, p_snippet TEXT DEFAULT NULL)',
+    'anonymous_admin_review_report(p_report_id UUID, p_status TEXT)',
+    'anonymous_admin_get_report_transcript(p_report_id UUID)',
+    // Part 3 Signaling: 2 WebRTC signaling RPCs
+    'anonymous_send_signal(p_room_id UUID, p_session_id UUID, p_event TEXT, p_payload JSONB DEFAULT \'{}\'::jsonb)',
+    'anonymous_poll_signals(p_room_id UUID, p_after_id BIGINT DEFAULT 0)',
+  ]
+
+  assert.equal(expectedSignatures.length, 16, 'expected exactly 16 signatures')
+
+  for (const sig of expectedSignatures) {
+    const fnName = sig.slice(0, sig.indexOf('('))
+    const fnText = combined.match(new RegExp(`CREATE FUNCTION public\\.${fnName}\\b[\\s\\S]*?\\n\\$\\$;`))?.[0]
+    assert.ok(fnText, `could not extract body of ${fnName}`)
+    assert.match(fnText, /SECURITY DEFINER/, `${fnName} must be SECURITY DEFINER`)
+    assert.match(fnText, /SET search_path = ''/, `${fnName} must have empty search_path`)
+  }
+})
+
+test('[canonical & part3] send_signal avoids unparenthesized CASE expression inside SDP payload validation', () => {
+  const part3 = read('database/migration_campus_anonymous_part3_signaling.sql')
+  for (const src of [canonical, part3]) {
+    const sendFn = src.match(/CREATE FUNCTION public\.anonymous_send_signal\b[\s\S]*?\n\$\$;/)?.[0]
+    assert.ok(sendFn, 'missing anonymous_send_signal')
+    // Must NOT have unparenthesized CASE WHEN ... inside IS DISTINCT FROM
+    assert.doesNotMatch(sendFn, /IS DISTINCT FROM\s+CASE WHEN/i)
+    // Must have clear event-scoped type comparisons
+    assert.match(sendFn, /p_event = 'video_offer' AND p_payload->>'type' IS DISTINCT FROM 'offer'/i)
+    assert.match(sendFn, /p_event = 'video_answer' AND p_payload->>'type' IS DISTINCT FROM 'answer'/i)
+  }
+})
+
+test('[split migrations] part1, part2_core and part3 provide clean function boundaries and explicit transaction handling', () => {
+  const part1 = read('database/migration_campus_anonymous_part1_schema.sql')
+  const part2Core = read('database/migration_campus_anonymous_part2_core_rpcs.sql')
+  const part3Signaling = read('database/migration_campus_anonymous_part3_signaling.sql')
+
+  // Part 1 explicit transaction
+  assert.match(part1, /^\s*BEGIN;/m)
+  assert.match(part1, /COMMIT;\s*$/m)
   for (const table of [
     'anonymous_queue', 'anonymous_rooms', 'anonymous_blocks',
-    'anonymous_reports', 'anonymous_rate_limits', 'anonymous_video_sessions',
-    'anonymous_signals', 'anonymous_active_participants'
+    'anonymous_active_participants', 'anonymous_messages', 'anonymous_reports',
+    'anonymous_rate_limits', 'anonymous_video_sessions', 'anonymous_signals'
   ]) {
-    assert.ok(canonical.includes(`'${table}'`), `missing publication check for ${table}`)
+    assert.match(part1, new RegExp(`CREATE TABLE public\\.${table}\\b`))
   }
-  assert.match(canonical, /Realtime must not publish sensitive Anonymous tables/)
-  assert.match(canonical, /Realtime must publish anonymous message inserts without publishing sensitive Anonymous tables/)
+  assert.match(part1, /CREATE TRIGGER anonymous_sync_active_participants/)
+
+  // Part 2 Core explicit transaction & dependencies
+  assert.match(part2Core, /^\s*BEGIN;/m)
+  assert.match(part2Core, /COMMIT;\s*$/m)
+  assert.match(part2Core, /Part 2 requires table public\.%\. Run Part 1 first\./)
+  assert.match(part2Core, /ALTER PUBLICATION supabase_realtime ADD TABLE public\.anonymous_messages/)
+  for (const fn of [
+    'anonymous_join_or_match', 'anonymous_check_match', 'anonymous_get_room_info',
+    'anonymous_get_messages', 'anonymous_heartbeat', 'anonymous_leave',
+    'anonymous_send_message', 'anonymous_block_partner', 'anonymous_report_partner',
+    'anonymous_admin_review_report', 'anonymous_admin_get_report_transcript'
+  ]) {
+    assert.match(part2Core, new RegExp(`CREATE FUNCTION public\\.${fn}\\b`))
+  }
+
+  // Part 3 Signaling explicit transaction & dependencies
+  assert.match(part3Signaling, /^\s*BEGIN;/m)
+  assert.match(part3Signaling, /COMMIT;\s*$/m)
+  assert.match(part3Signaling, /Part 3 requires tables from Part 1\. Run Part 1 first\./)
+  assert.match(part3Signaling, /Part 3 requires core RPCs from Part 2\. Run Part 2 first\./)
+  for (const fn of ['anonymous_send_signal', 'anonymous_poll_signals']) {
+    assert.match(part3Signaling, new RegExp(`CREATE FUNCTION public\\.${fn}\\b`))
+  }
 })
+
 

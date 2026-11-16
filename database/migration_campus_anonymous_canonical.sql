@@ -70,7 +70,8 @@ BEGIN
     RAISE EXCEPTION 'CampusAnonymous requires Phase A function public.is_admin().';
   END IF;
 
-  -- 3. Supabase Realtime publication check (must exist, must not publish all tables, must have INSERT enabled)
+  -- 3. Supabase Realtime publication check
+  -- 3a. Must exist, must not publish all tables, and must have INSERT events enabled
   IF NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_publication
     WHERE pubname = 'supabase_realtime' AND NOT puballtables AND pubinsert
@@ -78,7 +79,24 @@ BEGIN
     RAISE EXCEPTION 'Realtime publication supabase_realtime must exist, must not publish all tables (puballtables = false), and must have INSERT events enabled (pubinsert = true).';
   END IF;
 
-  -- Ensure sensitive tables are NOT published in Realtime
+  -- 3b. Must not publish the entire public schema (PostgreSQL 15+ pg_publication_namespace)
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'pg_catalog' AND c.relname = 'pg_publication_namespace'
+  ) THEN
+    IF EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_publication_namespace pn
+      JOIN pg_catalog.pg_publication p ON p.oid = pn.pnpubid
+      JOIN pg_catalog.pg_namespace n ON n.oid = pn.pnnspid
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'public'
+    ) THEN
+      RAISE EXCEPTION 'Realtime publication supabase_realtime must not publish the entire public schema (pg_publication_namespace). Sensitive Anonymous tables would be exposed.';
+    END IF;
+  END IF;
+
+  -- 3c. Ensure sensitive tables are NOT published in Realtime
   IF EXISTS (
     SELECT 1 FROM pg_catalog.pg_publication_tables
     WHERE pubname = 'supabase_realtime'
@@ -1080,8 +1098,8 @@ BEGIN
     IF pg_catalog.octet_length(p_payload::text) > 32768
        OR pg_catalog.jsonb_typeof(p_payload->'sdp') IS DISTINCT FROM 'string'
        OR pg_catalog.octet_length(p_payload->>'sdp') < 1
-       OR p_payload->>'type' IS DISTINCT FROM
-          CASE WHEN p_event = 'video_offer' THEN 'offer' ELSE 'answer' END
+       OR (p_event = 'video_offer' AND p_payload->>'type' IS DISTINCT FROM 'offer')
+       OR (p_event = 'video_answer' AND p_payload->>'type' IS DISTINCT FROM 'answer')
        OR (p_payload - 'sdp' - 'type') <> '{}'::jsonb THEN
       RAISE EXCEPTION 'Invalid SDP payload.';
     END IF;
@@ -1257,39 +1275,86 @@ GRANT EXECUTE ON FUNCTION public.anonymous_poll_signals(UUID,BIGINT) TO authenti
 
 -- ─── 13. SUPABASE REALTIME CONFIGURATION ─────────────────────
 -- Add anonymous_messages (zero UUID columns) to supabase_realtime.
--- Re-verify that sensitive tables are not published.
+-- Re-verify that sensitive tables and public schema are not published.
+-- Fails explicitly if the Realtime publication is missing or invalid.
 DO $$
 BEGIN
+  -- 1. Fail explicitly if publication is missing, publishes all tables, or lacks INSERT events
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_publication
+    WHERE pubname = 'supabase_realtime'
+  ) THEN
+    RAISE EXCEPTION 'Realtime publication supabase_realtime does not exist. Stop and inspect Supabase Realtime setup.';
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM pg_catalog.pg_publication
-    WHERE pubname = 'supabase_realtime' AND NOT puballtables AND pubinsert
+    WHERE pubname = 'supabase_realtime' AND puballtables
   ) THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_catalog.pg_publication_tables
-      WHERE pubname = 'supabase_realtime'
-        AND schemaname = 'public'
-        AND tablename = 'anonymous_messages'
-    ) THEN
-      ALTER PUBLICATION supabase_realtime ADD TABLE public.anonymous_messages;
-    END IF;
+    RAISE EXCEPTION 'Realtime publication supabase_realtime has puballtables = true. Sensitive Anonymous tables would be exposed. Set puballtables = false before proceeding.';
+  END IF;
 
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_publication
+    WHERE pubname = 'supabase_realtime' AND pubinsert
+  ) THEN
+    RAISE EXCEPTION 'Realtime publication supabase_realtime does not have INSERT events enabled (pubinsert = false). Messages cannot stream.';
+  END IF;
+
+  -- 2. Fail explicitly if publication publishes entire public schema (PostgreSQL 15+)
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'pg_catalog' AND c.relname = 'pg_publication_namespace'
+  ) THEN
     IF EXISTS (
-      SELECT 1 FROM pg_catalog.pg_publication_tables
-      WHERE pubname = 'supabase_realtime'
-        AND schemaname = 'public'
-        AND tablename = ANY (ARRAY[
-          'anonymous_queue',
-          'anonymous_rooms',
-          'anonymous_blocks',
-          'anonymous_reports',
-          'anonymous_rate_limits',
-          'anonymous_video_sessions',
-          'anonymous_signals',
-          'anonymous_active_participants'
-        ])
+      SELECT 1
+      FROM pg_catalog.pg_publication_namespace pn
+      JOIN pg_catalog.pg_publication p ON p.oid = pn.pnpubid
+      JOIN pg_catalog.pg_namespace n ON n.oid = pn.pnnspid
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'public'
     ) THEN
-      RAISE EXCEPTION 'Realtime must publish anonymous message inserts without publishing sensitive Anonymous tables; inspect the publication.';
+      RAISE EXCEPTION 'Realtime publication supabase_realtime publishes the entire public schema (pg_publication_namespace). Sensitive Anonymous tables would be exposed. Remove schema-wide publication before proceeding.';
     END IF;
+  END IF;
+
+  -- 3. Fail explicitly if any sensitive Anonymous table is published
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = ANY (ARRAY[
+        'anonymous_queue',
+        'anonymous_rooms',
+        'anonymous_blocks',
+        'anonymous_reports',
+        'anonymous_rate_limits',
+        'anonymous_video_sessions',
+        'anonymous_signals',
+        'anonymous_active_participants'
+      ])
+  ) THEN
+    RAISE EXCEPTION 'Realtime must not publish sensitive Anonymous tables; inspect the publication.';
+  END IF;
+
+  -- 4. Safely add anonymous_messages if not already added
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'anonymous_messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.anonymous_messages;
+  END IF;
+
+  -- 5. Post-addition verification: verify anonymous_messages is now published
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'anonymous_messages'
+  ) THEN
+    RAISE EXCEPTION 'Failed to add public.anonymous_messages to supabase_realtime publication.';
   END IF;
 END;
 $$;
